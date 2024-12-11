@@ -286,7 +286,7 @@ class Cache
     {
         if ($this->changed) {
             // Set a temp directory to store caches. 
-            $cacheDir = env('tmp_dir');
+            $cacheDir = env('cache_dir');
 
             // Check if cache directory exists, else create a new direcotry.
             if (!is_dir($cacheDir) && !mkdir($cacheDir, 0777, true)) {
