@@ -47,8 +47,8 @@ class Vite
             'port' => 5133,
             'running' => null,
             'reactRefresh' => false,
+            'root' => '/resources/',
             'entry' => 'app.js',
-            'root' => 'resources',
             'dist' => 'build',
             'dist_path' => 'public/resources/',
             'manifest' => null,
@@ -184,7 +184,7 @@ class Vite
      */
     public function getManifest(): array
     {
-        $manifestPath = root_dir($this->config('dist_path') . $this->config('dist') . '/manifest.json');
+        $manifestPath = root_dir($this->config('dist_path') . $this->config('dist') . '/.vite/manifest.json');
         return $this->config['manifest'] ??=
             file_exists($manifestPath) ? (array) json_decode(file_get_contents($manifestPath), true) : [];
     }
@@ -250,12 +250,12 @@ class Vite
     private function serverUrl(string $path = ''): string
     {
         return sprintf(
-            '%s%s:%d/%s/%s',
+            '%s%s:%d%s%s',
             $this->config('scheme'),
             $this->config('host'),
             $this->config('port'),
-            trim($this->config('root'), '/'),
-            trim($path, '/')
+            $this->config('root'),
+            $path
         );
     }
 
