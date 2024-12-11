@@ -53,7 +53,7 @@ class Cache
     public function setName(string $name): self
     {
         $this->name = $name;
-        $this->cachePath = env('tmp_dir') . '/' . md5($name) . '.cache';
+        $this->cachePath = env('cache_dir') . '/' . md5($name) . '.cache';
         $this->cacheData = [];
         $this->erased = false;
         $this->cached = false;

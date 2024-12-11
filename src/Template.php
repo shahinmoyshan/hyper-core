@@ -41,7 +41,7 @@ class Template
     public function __construct(?string $path = null)
     {
         $this->setPath(
-            $path ?? app_dir('templates/')
+            $path ?? env('template_dir') . '/'
         );
     }
 

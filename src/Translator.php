@@ -30,10 +30,7 @@ class Translator
     {
         // Determine the default language file if none is provided
         if ($lang_file === null) {
-            $lang_file = env(
-                'lang_file',
-                sprintf('%s/%s.php', env('lang_dir'), env('lang', 'en'))
-            );
+            $lang_file = sprintf('%s/%s.php', env('lang_dir'), env('lang', 'en'));
         }
 
         // Load translated texts from the file if it exists

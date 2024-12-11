@@ -197,7 +197,7 @@ function template(string $template, array $context = []): Response
 function template_exists(string $template): bool
 {
     return file_exists(
-        app_dir('templates/' . rtrim($template, '.php') . '.php')
+        env('template_dir') . '/' . rtrim($template, '.php') . '.php'
     );
 }
 
@@ -305,25 +305,25 @@ function route_url(string $name, null|string|array $context = null): string
  *
  * @return string The full path to the application directory, including the appended sub-path.
  */
-function app_dir(string $path = '/'): string
+function root_dir(string $path = '/'): string
 {
     return rtrim(app()->getPath() . '/' . ltrim($path), '/');
 }
 
 /**
- * Get the root directory path with an optional appended path.
+ * Get the application storage directory path with an optional appended path.
  *
- * This function returns the root directory path, optionally appending a
- * specified sub-path to it. The resulting path is normalized with a single
- * trailing slash.
+ * This function returns the application's storage directory path, optionally
+ * appending a specified sub-path to it. The resulting path is normalized
+ * with a single trailing slash.
  *
- * @param string $path The sub-path to append to the root directory path. Default is '/'.
+ * @param string $path The sub-path to append to the storage directory path. Default is '/'.
  *
- * @return string The full path to the root directory, including the appended sub-path.
+ * @return string The full path to the storage directory, including the appended sub-path.
  */
-function root_dir(string $path = ''): string
+function storage_dir(string $path = '/'): string
 {
-    return rtrim(ROOT_DIR . '/' . ltrim($path, '/'), '/');
+    return rtrim(env('storage_dir') . '/' . ltrim($path), '/');
 }
 
 // Helper/Utils Shortcut
