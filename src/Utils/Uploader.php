@@ -65,14 +65,6 @@ class Uploader
     public ?int $compress;
 
     /**
-     * Initializes the uploader with default settings.
-     */
-    public function __construct(...$args)
-    {
-        $this->setup(...$args);
-    }
-
-    /**
      * Sets up the uploader configuration.
      *
      * @param string $uploadDir Upload directory path.
@@ -91,7 +83,7 @@ class Uploader
         ?array $resize = null,
         ?array $resizes = null,
         ?int $compress = null
-    ) {
+    ): self {
         $this->uploadDir = $uploadDir;
         $this->extensions = $extensions;
         $this->multiple = $multiple;
@@ -106,6 +98,8 @@ class Uploader
         } elseif (!is_writable($this->uploadDir) && !chmod($this->uploadDir, 0777)) {
             throw new RuntimeException(__('upload directory is not writable'));
         }
+
+        return $this;
     }
 
     /**

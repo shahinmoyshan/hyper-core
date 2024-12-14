@@ -71,6 +71,29 @@ class Template
     }
 
     /**
+     * Retrieves a value from the template context.
+     *
+     * @param string $key The name of the value to retrieve.
+     * @param mixed $default The default value to return if $key is not set in the context.
+     * @return mixed Returns the value associated with the key, or the default value if the key is not set.
+     */
+    public function get(string $key, $default = null)
+    {
+        return $this->context[$key] ?? $default;
+    }
+
+    /**
+     * Checks if a key exists in the template context.
+     *
+     * @param string $key The context key to check.
+     * @return bool True if the key exists in the context, false otherwise.
+     */
+    public function has(string $key): bool
+    {
+        return isset($this->context[$key]);
+    }
+
+    /**
      * Retrieves the current template context.
      *
      * Returns an associative array of variables available to the template.
