@@ -197,6 +197,7 @@ class Container
             $reflectionMethod->getParameters()
         );
 
+
         // Call the method with resolved parameters
         return $reflectionMethod->invokeArgs($instance, $dependencies);
     }
@@ -210,8 +211,8 @@ class Container
      */
     public function forget(string $abstract): void
     {
-        // Resolve alias to the actual abstract name
-        $abstract = $this->aliases[$abstract] ?? $abstract;
+        // Resolve aliases
+        $abstract = $this->resolveAlias($abstract);
 
         // Remove from instances, bindings, and aliases
         unset($this->instances[$abstract]);
@@ -222,6 +223,30 @@ class Container
             if ($resolved === $abstract) {
                 unset($this->aliases[$alias]);
             }
+        }
+    }
+
+    /**
+     * Resets a binding.
+     *
+     * Resets a binding to its default state. This method is used to reset
+     * a binding after it has been forgotten.
+     *
+     * @param string $abstract The abstract name of the class or interface to reset.
+     * @param callable|string|null $concrete The concrete class or closure to set as the new binding.
+     *
+     * @return void
+     */
+    public function reset(string $abstract, callable|string|null $concrete = null): void
+    {
+        $abstract = $this->resolveAlias($abstract);
+
+        // Reset the binding
+        $this->bindings[$abstract] = $concrete ?? $abstract;
+
+        // Reset the instance for singleton bindings
+        if (array_key_exists($abstract, $this->instances)) {
+            $this->instances[$abstract] = null;
         }
     }
 

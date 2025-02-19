@@ -123,6 +123,18 @@ class Application
     }
 
     /**
+     * Merges the provided environment variables with the existing ones.
+     *
+     * @param array $env An associative array of environment variables to merge.
+     *
+     * @return void
+     */
+    public function mergeEnv(array $env): void
+    {
+        $this->env = array_merge($this->env, $env);
+    }
+
+    /**
      * Retrieves the application's dependency injection container.
      *
      * This container manages the application's services and dependencies,

@@ -19,6 +19,14 @@ class Translator
      */
     private array $translatedTexts = [];
 
+
+    /**
+     * List of deferred language files to be loaded.
+     * 
+     * @var array
+     */
+    private array $deferredLanguageFiles = [];
+
     /**
      * Constructor for the translator class.
      * 
@@ -33,10 +41,7 @@ class Translator
             $lang_file = sprintf('%s/%s.php', env('lang_dir'), env('lang', 'en'));
         }
 
-        // Load translated texts from the file if it exists
-        if (file_exists($lang_file)) {
-            $this->translatedTexts = require $lang_file;
-        }
+        $this->addLanguageFile($lang_file);
     }
 
     /**
@@ -52,6 +57,25 @@ class Translator
         $this->translatedTexts = array_merge($this->translatedTexts, $translatedTexts);
     }
 
+    /**
+     * Adds a language file to the list of deferred language files.
+     *
+     * If the prepend flag is true, the language file is added to the beginning
+     * of the list. Otherwise, it is added to the end of the list.
+     *
+     * @param string $lang_file The path to the language file to add.
+     * @param bool $prepend Whether to add the language file to the beginning of the list.
+     * @return void
+     */
+    public function addLanguageFile(string $lang_file, bool $prepend = false): void
+    {
+        if ($prepend) {
+            array_unshift($this->deferredLanguageFiles, $lang_file);
+            return;
+        }
+
+        $this->deferredLanguageFiles[] = $lang_file;
+    }
 
     /**
      * Sets the translations for the translator.
@@ -79,7 +103,7 @@ class Translator
     public function translate(string $text, $arg = null, array $args = [], array $args2 = []): string
     {
         // Check if the text has a translation
-        $translation = $this->translatedTexts[$text] ?? $text;
+        $translation = $this->getTranslatedText($text);
 
         // Determine if the translation has plural forms
         if (is_array($translation)) {
@@ -96,5 +120,39 @@ class Translator
 
         // Use vsprintf to substitute any placeholders with args
         return vsprintf($translation, $args);
+    }
+
+    /**
+     * Gets the translated text based on the given text.
+     * 
+     * Checks if the given text has a translation in the loaded language files.
+     * If the translation is not found, it checks if there are any deferred language files
+     * and loads the first one. If the translation is still not found, the original text is returned.
+     * 
+     * @param string $text The text to be translated.
+     * @return string|array The translated text or an array of plural translations.
+     */
+    public function getTranslatedText(string $text): string|array
+    {
+        // Check if the translation is already loaded
+        $translated = $this->translatedTexts[$text] ?? null;
+
+        // If the translation is not found and there are deferred language files
+        if ($translated === null && !empty($this->deferredLanguageFiles)) {
+            // Load the first deferred language file
+            $lang_file = array_shift($this->deferredLanguageFiles);
+
+            // Check if the language file exists
+            if (file_exists($lang_file)) {
+                // Merge the loaded translations with the existing ones
+                $this->mergeTranslatedTexts(require $lang_file);
+            }
+
+            // Try to get the translation again
+            return $this->getTranslatedText($text);
+        }
+
+        // Return the translated text if found, else return the original text
+        return $translated ?? $text;
     }
 }

@@ -178,7 +178,7 @@ class Router
      * Get the URL path for a named route.
      * 
      * @param string $name The name of the route.
-     * @param string|null $context Optional context parameter for dynamic segments.
+     * @param string|null|array $context Optional context parameter for dynamic segments.
      * 
      * @return string Returns the route's path.
      * 
@@ -189,21 +189,27 @@ class Router
         // Retrieve the route path by name or throw an exception
         $route = $this->routes[$name]['path'] ?? null;
         if ($route === null) {
-            throw new Exception(sprintf('Route (%s) does not found.', $name));
+            throw new Exception(sprintf('Route (%s) does not exist.', $name));
         }
 
         // Replace dynamic parameters in route path with context, if provided
         if ($context !== null) {
             if (is_array($context)) {
                 foreach ($context as $key => $value) {
-                    $route = preg_replace('/\{' . $key . '\}/', $value, $route);
+                    $pattern = sprintf('/\{%s\??\}/', preg_quote($key, '/'));
+                    $route = preg_replace($pattern, $value, $route);
                 }
             } else {
-                $route = preg_replace('/\{[a-zA-Z]+\}/', $context, $route);
+                // Replace any non-specified dynamic parameters
+                $route = preg_replace('/\{[a-zA-Z]+\??\}/', $context, $route);
             }
         }
 
-        return rtrim($route, '*');
+        // Remove unresolved optional parameters
+        $route = preg_replace('/\{[a-zA-Z]+\?\}/', '', $route);
+
+        // Remove trailing wildcard
+        return rtrim($route, '*/');
     }
 
 
@@ -267,7 +273,7 @@ class Router
         }
 
         // Create route pattern with optional named parameters, Ex: /users/{id?}
-        $pattern = preg_replace('/\/\{[a-zA-Z]+\?\}/', '(?:/([a-zA-Z0-9_-]*))?', $routePath);
+        $pattern = preg_replace('/\/\{[a-zA-Z]+\?\}/', '(?:/([a-zA-Z0-9_-]+))?', $routePath);
 
         // Create route pattern with required named parameters, Ex: /users/{id}
         $pattern = preg_replace('/\{[a-zA-Z]+\}/', '([a-zA-Z0-9_-]+)', $pattern);

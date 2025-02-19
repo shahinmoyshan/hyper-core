@@ -3,6 +3,7 @@
 namespace Hyper\Utils;
 
 use Hyper\Model;
+use Throwable;
 
 /**
  * Class Auth
@@ -40,6 +41,8 @@ class Auth
             'cache_expire' => '10 minutes',
             'guest_route' => 'admin.auth.login',
             'logged_in_route' => 'admin.dashboard',
+            'cookie_name' => null,
+            'cookie_expire' => '30 days',
         ], $config);
     }
 
@@ -56,7 +59,7 @@ class Auth
     {
         // Check if the user's ID is not set and the session has the session key
         if (!isset($this->user)) {
-            if ($this->session->has($this->config['session_key'])) {
+            if ($this->session->has($this->config['session_key']) || $this->hasCookieAuth()) {
                 // Attempt to load user from cache if caching is enabled
                 if ($this->config['cache_enabled']) {
                     $this->user = cache($this->config['cache_name'])
@@ -81,6 +84,47 @@ class Auth
 
         // Return the currently logged in user
         return $this->user;
+    }
+
+    /**
+     * Checks if the user is authenticated via a cookie.
+     *
+     * If the configured cookie name is set, this method will attempt to
+     * decrypt the cookie value and verify that it contains a valid user ID
+     * and expiration time. If the cookie is valid, the user ID will be set
+     * in the session and true will be returned.
+     *
+     * @return bool True if the user is authenticated via a cookie, false otherwise.
+     */
+    protected function hasCookieAuth(): bool
+    {
+        // Check if a cookie name is configured
+        if (isset($this->config['cookie_name'])) {
+            $token = $_COOKIE[$this->config['cookie_name']] ?? null;
+            if (isset($token) && !empty($token) && is_string($token)) {
+                try {
+                    // Attempt to decrypt the cookie value
+                    $token = json_decode(
+                        get(Hash::class)
+                            ->decrypt($token),
+                        true
+                    );
+
+                    // Verify that the decrypted value is an array with an 'id' and 'expire' key
+                    if (is_array($token) && isset($token['expire']) && isset($token['id']) && time() < $token['expire']) {
+                        // Set the user ID in the session and return true
+                        $this->session->set($this->config['session_key'], $token['id']);
+                        return true;
+                    }
+                } catch (Throwable $e) {
+                    // If an error occurs, rethrow it if debug mode is enabled
+                    if (env('debug')) {
+                        throw $e;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -123,12 +167,30 @@ class Auth
      * Logs in the specified user by setting the session and user properties.
      *
      * @param Model $user The user model to be logged in.
+     * @param bool $remember Optional parameter to determine if the user should be remembered.
      * @return void
      */
-    public function login(Model $user): void
+    public function login(Model $user, bool $remember = false): void
     {
         $this->session->set($this->config['session_key'], $user->id);
         $this->user = $user;
+
+        if ($remember && isset($this->config['cookie_name'])) {
+            // set cookie expiration time
+            $tokenExpire = strtotime($this->config['cookie_expire'] ?? '30 days');
+
+            // add user hashed token in cookie with expiration
+            $token = get(Hash::class)
+                ->encrypt(
+                    json_encode(['id' => $user->id, 'expire' => $tokenExpire])
+                );
+
+            // set cookie with token and expiration
+            setcookie($this->config['cookie_name'], $token, $tokenExpire, '/', '', true, true);
+
+            // set cookie for current request
+            $_COOKIE[$this->config['cookie_name']] = $token;
+        }
     }
 
     /**
@@ -144,6 +206,12 @@ class Auth
         // Delete the session variable and unset the user property.
         $this->session->delete($this->config['session_key']);
         unset($this->user);
+
+        // destroy cookue auth if enabled
+        if (isset($this->config['cookie_name'])) {
+            setcookie($this->config['cookie_name'], '', time() - 3600, '/', '', true, true);
+            unset($_COOKIE[$this->config['cookie_name']]);
+        }
     }
 
     /**

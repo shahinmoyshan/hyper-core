@@ -2,6 +2,7 @@
 
 namespace Hyper;
 
+use Exception;
 use PDO;
 use PDOStatement;
 
@@ -132,6 +133,11 @@ class Database
     {
         // Clear previous PDO connection if exists.
         unset($this->pdo);
+
+        // Check if config is empty.
+        if (empty($this->config)) {
+            throw new Exception('Database configuration is empty.');
+        }
 
         // Check if config has a default DSN else. create a new one. 
         $dsn = $this->config['dsn'] ?? $this->buildDsn();

@@ -163,7 +163,7 @@ class Template
     public function include(string $template, array $context = []): string
     {
         // Create a template location path with template root dir.
-        $templatePath = $this->path . rtrim($template, '.php') . '.php';
+        $templatePath = $this->path . str_replace('.php', '', $template) . '.php';
 
         // Extract and pass variables from array.
         $context = array_merge($this->context, $context);

@@ -93,12 +93,20 @@ trait Uploader
 
         // Check if files are uploaded.
         if ($this->hasUploads($files)) {
+            // Get the uploader callback if exixts
+            $callback = $upload['callback'] ?? null;
+
+            unset($upload['callback']);
+
             // Save the newly uploaded files and get their paths.
             $uploader = get(UploaderUtil::class)
                 ->setup(...$upload);
 
             // Clear the base upload directory prefix from the saved paths.
-            $saved = $this->clearSavedPath($uploader->upload($files), env('upload_dir'));
+            $saved = $this->clearSavedPath(
+                $callback !== null && is_callable($callback) ? call_user_func($callback, $uploader, $files) : $uploader->upload($files),
+                env('upload_dir')
+            );
 
             // Remove old files from the file system if they exist.
             $this->removeFiles($oldFiles);
@@ -107,7 +115,7 @@ trait Uploader
             $saved = count($oldFiles) === 1 ? $oldFiles[0] : $oldFiles;
         }
 
-        return $saved;
+        return empty($saved) ? null : $saved;
     }
 
     /**

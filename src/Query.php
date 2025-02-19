@@ -364,7 +364,7 @@ class Query
      */
     public function as(string $alias): self
     {
-        $this->query['alias'] = stripos($alias, 'AS ') === false ? " AS {$alias} " : " {$alias} ";
+        $this->query['alias'] = $alias !== '' ? stripos($alias, 'AS ') === false ? " AS {$alias} " : " {$alias} " : '';
         return $this;
     }
 
@@ -728,7 +728,7 @@ class Query
                     '%s:%s_%s%s',
 
                     // create placeholder from array value ex: ['prefix' => 'DATE('].
-                    is_array($value) && isset ($value['prefix']) ?
+                    is_array($value) && isset($value['prefix']) ?
                     $value['prefix'] : '',
 
                     // Placeholder main part.
@@ -736,7 +736,7 @@ class Query
                     $serial,
 
                     // create placeholder from array value ex: ['suffix' => ')'].
-                    is_array($value) && isset ($value['suffix']) ?
+                    is_array($value) && isset($value['suffix']) ?
                     $value['suffix'] : ''
                 ),
                 array_keys($row),

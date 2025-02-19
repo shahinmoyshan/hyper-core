@@ -243,6 +243,21 @@ class Request
     }
 
     /**
+     * Checks if the current request method matches any of the specified methods.
+     * 
+     * @param string|array $methods The method or array of methods to check against.
+     * @return bool True if the current request method is in the specified methods, false otherwise.
+     */
+    public function isMethod(string|array $methods): bool
+    {
+        // Convert the methods to an array of uppercase strings
+        $methods = array_map('strtoupper', (array) $methods);
+
+        // Check if the current request method is in the list of methods
+        return in_array(strtoupper($this->method), $methods);
+    }
+
+    /**
      * Retrieves the URI path of the current request.
      * 
      * @return string The request URI path.

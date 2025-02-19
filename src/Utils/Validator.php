@@ -61,10 +61,10 @@ class Validator
                     'number' => ($has_valid_value || $is_required) ? is_numeric($value) : true,
                     'array' => ($has_valid_value || $is_required) ? is_array($value) : true,
                     'text' => ($has_valid_value || $is_required) ? is_string($value) : true,
-                    'min' => ($has_valid_value || $is_required) ? strlen($value) >= (int) $ruleParams[0] : true,
-                    'max' => ($has_valid_value || $is_required) ? strlen($value) <= (int) $ruleParams[0] : true,
-                    'length' => ($has_valid_value || $is_required) ? strlen($value) == (int) $ruleParams[0] : true,
-                    'equal' => ($has_valid_value || $is_required) ? $value == $inputData[$ruleParams[0]] : true,
+                    'min' => ($has_valid_value || $is_required) ? strlen($value ?? '') >= (int) $ruleParams[0] : true,
+                    'max' => ($has_valid_value || $is_required) ? strlen($value ?? '') <= (int) $ruleParams[0] : true,
+                    'length' => ($has_valid_value || $is_required) ? strlen($value ?? '') == (int) $ruleParams[0] : true,
+                    'equal' => ($has_valid_value || $is_required) ? $value == ($inputData[$ruleParams[0]] ?? null) : true,
                     default => true
                 };
 

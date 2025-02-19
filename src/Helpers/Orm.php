@@ -78,6 +78,42 @@ trait Orm
     }
 
     /**
+     * Runs the specified ORM relationship on the given set of models.
+     * 
+     * If no ORM relationships are specified, all registered relationships will be loaded.
+     * 
+     * @param array|string $orm The relationships to load, or '*' to load all registered relationships.
+     * @param array $models The set of models to apply the ORM to.
+     * 
+     * @return void
+     * 
+     * @throws RuntimeException If the specified relationship is not defined in the ORM configuration.
+     */
+    public static function runOrm(array|string $orm = '*', array &$models = []): void
+    {
+        if (empty($models)) {
+            return;
+        }
+
+        $model = new self;
+        $registeredOrm = $model->orm();
+
+        if ($orm === '*') {
+            $orm = array_keys($registeredOrm);
+        }
+
+        foreach ((array) $orm as $with) {
+            $config = $registeredOrm[$with] ?? false;
+
+            if (!$config) {
+                throw new RuntimeException("Orm({$with}) does not specified in: " . $model::class);
+            }
+
+            $model->handleOrm($models, $config, $with);
+        }
+    }
+
+    /**
      * Retrieve the registered ORM configurations for the model.
      * 
      * @return array
@@ -113,6 +149,19 @@ trait Orm
         }
 
         return null;
+    }
+
+    /**
+     * Check if the specified ORM relationship is set.
+     * 
+     * @param string $name The name of the ORM relationship to check.
+     * @return bool True if the relationship has been set, false otherwise.
+     */
+    public function __isset($name)
+    {
+        // If the relationship is not set, return false.
+        // Otherwise, return true if the relationship is not empty.
+        return $this->__get($name) !== null && !empty($this->__get($name));
     }
 
     /**
@@ -249,19 +298,24 @@ trait Orm
     private function one(array $data, array $config, string $with): array
     {
         $model = new $config['model'];
-        $ids = collect($data)
-            ->pluck("{$model->table()}_id")
-            ->unique();
 
-        // get or genarate foreignKey for foreign model
+        // get or genarate foreign for forriegn model
         $foreignKey = $config['foreignKey'] ?? $model->table() . '_id';
+
+        // get or genarate local for currennt/loccal model
+        $localKey = $config['localKey'] ?? 'id';
+
+        // get ids from main data
+        $ids = collect($data)
+            ->pluck($foreignKey)
+            ->unique();
 
         // get objects from foreign table
         $objects = $ids->count() > 0 ? $this->applyCallback(
             $model->query()
                 ->select()
                 ->fetch(PDO::FETCH_ASSOC)
-                ->where(['id' => $ids->all()]),
+                ->where([$localKey => $ids->all()]),
             $config
         )
             ->result() : [];
@@ -273,7 +327,7 @@ trait Orm
             }
 
             foreach ($objects as $o) {
-                if ($o['id'] === $d->{$foreignKey}) {
+                if ($o[$localKey] === $d->{$foreignKey}) {
                     $d->ormData[$with] = $model->load($o);
                     break;
                 }

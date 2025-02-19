@@ -271,6 +271,24 @@ class Model
     }
 
     /**
+     * Retrieves an array of fields to be ignored.
+     *
+     * Checks if the model has an `__except` property and returns its value
+     * as an array of fields to be ignored. If the property does not exist,
+     * an empty array is returned.
+     *
+     * @return array An array of field names to be ignored.
+     */
+    public function ignoredFields(): array
+    {
+        if (property_exists($this, '__except')) {
+            return $this->__except;
+        }
+
+        return [];
+    }
+
+    /**
      * Retrieves an array of the model's fillable data.
      *
      * This function utilizes reflection to get the public properties of the model
@@ -280,16 +298,33 @@ class Model
      */
     public function fillableData(): array
     {
-        $reflection = new ReflectionClass($this);
-        // Get all public properties of the class
-        $publicProperties = $reflection->getProperties(ReflectionProperty::IS_PUBLIC);
+        // Get the defined fillable properties.
+        if (property_exists($this, '__fillable')) {
+            $publicProperties = $this->__fillable;
+        } else {
+            // Generate fillable properties
+            $reflection = new ReflectionClass($this);
+            // Get all public properties of the class
+            $publicProperties = collect(
+                $reflection->getProperties(ReflectionProperty::IS_PUBLIC)
+            )
+                ->map(fn($property) => $property->getName())
+                ->all();
+        }
+
+        // Get the properties to exclude
+        $except = property_exists($this, '__except') ? $this->__except : [];
 
         $result = [];
         // Iterate over each public property
         foreach ($publicProperties as $property) {
-            $propertyName = $property->getName();
+            // Check if the property should be excluded
+            if (in_array($property, $except)) {
+                continue;
+            }
+
             // Get the value of the property, or set it to null if not set
-            $result[$propertyName] = $this->{$propertyName} ?? null;
+            $result[$property] = $this->{$property} ?? null;
         }
 
         // Return the associative array of properties and their values

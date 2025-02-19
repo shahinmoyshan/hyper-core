@@ -114,15 +114,28 @@ class Hash
      */
     public function encrypt(string $value): string
     {
-        $ivLength = openssl_cipher_iv_length('AES-256-CBC');
-        $iv = random_bytes($ivLength);
+        // Generate a cryptographically secure random IV
+        $iv = random_bytes(openssl_cipher_iv_length('AES-256-CBC'));
+
+        // Encrypt the value
         $cipherText = openssl_encrypt($value, 'AES-256-CBC', $this->key, 0, $iv);
 
+        // Check if encryption was successful
         if ($cipherText === false) {
             throw new Exception('Encryption failed.');
         }
 
-        return base64_encode("$cipherText::$iv");
+        // Use JSON encoding for cleaner and safer storage of IV and ciphertext
+        $encryptedData = json_encode([
+            'cipherText' => $cipherText,
+            'iv' => base64_encode($iv)
+        ]);
+
+        if ($encryptedData === false) {
+            throw new Exception('Failed to encode encrypted data.');
+        }
+
+        return base64_encode($encryptedData);
     }
 
     /**
@@ -134,14 +147,25 @@ class Hash
      */
     public function decrypt(string $encrypted): string
     {
-        $data = base64_decode($encrypted);
-        [$cipherText, $iv] = explode('::', $data, 2);
+        $decodedData = base64_decode($encrypted, true);
 
-        if (!$cipherText || !$iv) {
+        if ($decodedData === false) {
+            throw new Exception('Invalid base64-encoded data.');
+        }
+
+        $data = json_decode($decodedData, true);
+
+        if (!is_array($data) || empty($data['cipherText']) || empty($data['iv'])) {
             throw new Exception('Invalid encrypted data format.');
         }
 
-        $plainText = openssl_decrypt($cipherText, 'AES-256-CBC', $this->key, 0, $iv);
+        $iv = base64_decode($data['iv'], true);
+
+        if ($iv === false) {
+            throw new Exception('Invalid IV format.');
+        }
+
+        $plainText = openssl_decrypt($data['cipherText'], 'AES-256-CBC', $this->key, 0, $iv);
 
         if ($plainText === false) {
             throw new Exception('Decryption failed.');

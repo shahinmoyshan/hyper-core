@@ -84,7 +84,6 @@ class Uploader
         ?array $resizes = null,
         ?int $compress = null
     ): self {
-        $this->uploadDir = $uploadDir;
         $this->extensions = $extensions;
         $this->multiple = $multiple;
         $this->maxSize = $maxSize;
@@ -92,13 +91,33 @@ class Uploader
         $this->resizes = $resizes;
         $this->compress = $compress;
 
+        // Set the upload directory
+        return $this->setUploadDir($uploadDir);
+    }
+
+    /**
+     * Sets the upload directory.
+     *
+     * @param string $uploadDir Upload directory path.
+     * @return $this
+     * @throws RuntimeException If the upload directory cannot be created or is not writable.
+     */
+    public function setUploadDir(string $uploadDir): self
+    {
         // Ensure the upload directory exists and is writable
-        if (!is_dir($this->uploadDir) && !mkdir($this->uploadDir, 0777, true)) {
-            throw new RuntimeException(__('failed to create upload directory'));
-        } elseif (!is_writable($this->uploadDir) && !chmod($this->uploadDir, 0777)) {
-            throw new RuntimeException(__('upload directory is not writable'));
+        if (!is_dir($uploadDir)) {
+            // Create the upload directory
+            if (!mkdir($uploadDir, 0777, true)) {
+                throw new RuntimeException(__('failed to create upload directory'));
+            }
+        } elseif (!is_writable($uploadDir)) {
+            // Make the upload directory writable
+            if (!chmod($uploadDir, 0777)) {
+                throw new RuntimeException(__('upload directory is not writable'));
+            }
         }
 
+        $this->uploadDir = $uploadDir;
         return $this;
     }
 
@@ -151,8 +170,8 @@ class Uploader
         }
 
         // Create a unique file name
-        $uniqueName = $this->generateUniqueFileName($file['name']);
-        $destination = $this->uploadDir . DIRECTORY_SEPARATOR . $uniqueName;
+        $filename = $this->generateUniqueFileName($file['name']);
+        $destination = $this->uploadDir . DIRECTORY_SEPARATOR . $filename;
 
         // Move the uploaded file to the destination
         if (!move_uploaded_file($file['tmp_name'], $destination)) {
@@ -161,7 +180,7 @@ class Uploader
 
         // Compress, resize, and bulk resize image if options are set and the file is an image
         if ((isset($this->compress) || isset($this->resize) || isset($this->resizes)) && in_array($extension, ['jpg', 'jpeg', 'png'])) {
-            $image = new image($destination);
+            $image = new Image($destination);
             if (isset($this->compress)) {
                 $image->compress($this->compress);
             }

@@ -15,7 +15,7 @@ use Hyper\Utils\Cache;
 use Hyper\Utils\Collect;
 use Hyper\Utils\Session;
 use Hyper\Utils\Sanitizer;
-use Hyper\Utils\validator;
+use Hyper\Utils\Validator;
 
 /**
  * Get the current application instance.
@@ -197,7 +197,7 @@ function template(string $template, array $context = []): Response
 function template_exists(string $template): bool
 {
     return file_exists(
-        env('template_dir') . '/' . rtrim($template, '.php') . '.php'
+        env('template_dir') . '/' . str_replace('.php', '', $template) . '.php'
     );
 }
 
@@ -602,7 +602,7 @@ function input(array $filter = []): Sanitizer
  */
 function validator(array $rules, array $data): Sanitizer
 {
-    $validator = get(validator::class);
+    $validator = get(Validator::class);
     $result = $validator->validate($rules, $data);
 
     if ($result) {
