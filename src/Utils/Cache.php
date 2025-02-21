@@ -48,17 +48,35 @@ class Cache
      * and adding it to the tmp_dir path.
      *
      * @param string $name The cache name.
+     * @param string|null $cacheDir The path to the cache directory.
      * @return self The instance of the cache for method chaining.
      */
-    public function setName(string $name): self
+    public function setName(string $name, ?string $cacheDir = null): self
     {
+        $cacheDir ??= env('cache_dir');
+
         $this->name = $name;
-        $this->cachePath = env('cache_dir') . '/' . md5($name) . '.cache';
+        $this->cachePath = $cacheDir . '/' . md5($name) . '.cache';
         $this->cacheData = [];
         $this->erased = false;
         $this->cached = false;
         $this->changed = false;
 
+        return $this;
+    }
+
+    /**
+     * Sets the path of the cache file.
+     *
+     * The set cache path is used to store the cache data.
+     * If the cache path is not set, the cache name is used to build the filename.
+     *
+     * @param string $path The path of the cache file.
+     * @return self The instance of the cache for method chaining.
+     */
+    public function setCachePath(string $path): self
+    {
+        $this->cachePath = $path;
         return $this;
     }
 
@@ -280,11 +298,19 @@ class Cache
     }
 
     /**
-     * Destructor to save cache data to the filesystem if there are changes.
+     * Saves the updated cache data to the filesystem if there are changes.
+     *
+     * Saves the updated cache data to the filesystem if there are changes.
+     * It will create a new directory if the cache directory does not exist,
+     * and throws an exception if the cache directory is not writable.
+     *
+     * @param int $flags Optional lock flags.
+     * @throws \RuntimeException Thrown if the cache directory is not writable.
+     * @return void
      */
-    public function __destruct()
+    public function saveChanges(int $flags = LOCK_EX): void
     {
-        if ($this->changed) {
+        if (isset($this->changed) && true === $this->changed) {
             // Set a temp directory to store caches. 
             $cacheDir = env('cache_dir');
 
@@ -299,8 +325,18 @@ class Cache
             file_put_contents(
                 $this->cachePath,
                 json_encode($this->cacheData, JSON_UNESCAPED_UNICODE),
-                LOCK_EX
+                $flags
             );
+
+            $this->changed = false;
         }
+    }
+
+    /**
+     * Destructor to save cache data to the filesystem if there are changes.
+     */
+    public function __destruct()
+    {
+        $this->saveChanges();
     }
 }
