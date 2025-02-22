@@ -197,7 +197,7 @@ function template(string $template, array $context = []): Response
 function template_exists(string $template): bool
 {
     return file_exists(
-        env('template_dir') . '/' . str_replace('.php', '', $template) . '.php'
+        dir_path(env('template_dir') . '/' . str_replace('.php', '', $template) . '.php')
     );
 }
 
@@ -214,7 +214,7 @@ function template_exists(string $template): bool
  */
 function url(string $path = ''): string
 {
-    return rtrim(request()->getRootUrl() . '/' . ltrim(str_replace(['\\'], ['/'], $path), '/'), '/');
+    return rtrim(request()->getRootUrl() . '/' . ltrim(str_replace('\\', '/', $path), '/'), '/');
 }
 
 /**
@@ -307,7 +307,7 @@ function route_url(string $name, null|string|array $context = null): string
  */
 function root_dir(string $path = '/'): string
 {
-    return rtrim(app()->getPath() . '/' . ltrim($path), '/');
+    return dir_path(app()->getPath() . '/' . ltrim($path, '/'));
 }
 
 /**
@@ -323,7 +323,23 @@ function root_dir(string $path = '/'): string
  */
 function storage_dir(string $path = '/'): string
 {
-    return rtrim(env('storage_dir') . '/' . ltrim($path), '/');
+    return dir_path(env('storage_dir') . '/' . ltrim($path, '/'));
+}
+
+/**
+ * Returns the path to the given directory.
+ *
+ * This function takes a given path and returns the path to the directory
+ * represented by that path. The path is trimmed of any trailing slashes and
+ * the directory separator is normalized to the correct separator for the
+ * current platform.
+ *
+ * @param string $path The path to the directory.
+ * @return string The path to the directory.
+ */
+function dir_path(string $path): string
+{
+    return rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
 }
 
 // Helper/Utils Shortcut
@@ -596,12 +612,14 @@ function input(array $filter = []): Sanitizer
  * Validates the given data against a set of rules.
  *
  * @param array $rules An array of validation rules to apply.
- * @param array $data The data to be validated.
+ * @param array|null $data An optional array of data to validate.
  * @return Sanitizer Returns a sanitizer object if validation passes.
  * @throws Exception Throws an exception if validation fails, with the first error message or a default message.
  */
-function validator(array $rules, array $data): Sanitizer
+function validator(array $rules, ?array $data = null): Sanitizer
 {
+    $data ??= request()->all();
+
     $validator = get(Validator::class);
     $result = $validator->validate($rules, $data);
 

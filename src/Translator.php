@@ -69,6 +69,8 @@ class Translator
      */
     public function addLanguageFile(string $lang_file, bool $prepend = false): void
     {
+        $lang_file = dir_path($lang_file);
+
         if ($prepend) {
             array_unshift($this->deferredLanguageFiles, $lang_file);
             return;

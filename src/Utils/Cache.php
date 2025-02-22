@@ -56,7 +56,7 @@ class Cache
         $cacheDir ??= env('cache_dir');
 
         $this->name = $name;
-        $this->cachePath = $cacheDir . '/' . md5($name) . '.cache';
+        $this->cachePath = dir_path($cacheDir . '/' . md5($name) . '.cache');
         $this->cacheData = [];
         $this->erased = false;
         $this->cached = false;
@@ -76,7 +76,7 @@ class Cache
      */
     public function setCachePath(string $path): self
     {
-        $this->cachePath = $path;
+        $this->cachePath = dir_path($path);
         return $this;
     }
 
@@ -310,7 +310,7 @@ class Cache
      */
     public function saveChanges(int $flags = LOCK_EX): void
     {
-        if (isset($this->changed) && true === $this->changed) {
+        if ($this->changed) {
             // Set a temp directory to store caches. 
             $cacheDir = env('cache_dir');
 

@@ -108,16 +108,16 @@ class Uploader
         if (!is_dir($uploadDir)) {
             // Create the upload directory
             if (!mkdir($uploadDir, 0777, true)) {
-                throw new RuntimeException(__('failed to create upload directory'));
+                throw new RuntimeException(__('Failed to create upload directory.'));
             }
         } elseif (!is_writable($uploadDir)) {
             // Make the upload directory writable
             if (!chmod($uploadDir, 0777)) {
-                throw new RuntimeException(__('upload directory is not writable'));
+                throw new RuntimeException(__('Upload directory is not writable.'));
             }
         }
 
-        $this->uploadDir = $uploadDir;
+        $this->uploadDir = dir_path($uploadDir);
         return $this;
     }
 
@@ -160,22 +160,22 @@ class Uploader
     {
         // Validate file size
         if (isset($this->maxSize) && $file['size'] > $this->maxSize) {
-            throw new RuntimeException(__('file size exceeds the maximum limit'));
+            throw new RuntimeException(__('File size exceeds the maximum limit.'));
         }
 
         // Validate file extension
         $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
         if (!empty($this->extensions) && !in_array(strtolower($extension), $this->extensions)) {
-            throw new RuntimeException(__('invalid file extension'));
+            throw new RuntimeException(__('Invalid file extension.'));
         }
 
         // Create a unique file name
         $filename = $this->generateUniqueFileName($file['name']);
-        $destination = $this->uploadDir . DIRECTORY_SEPARATOR . $filename;
+        $destination = dir_path("{$this->uploadDir}/$filename");
 
         // Move the uploaded file to the destination
         if (!move_uploaded_file($file['tmp_name'], $destination)) {
-            throw new RuntimeException(__('failed to move uploaded file'));
+            throw new RuntimeException(__('Failed to move uploaded file.'));
         }
 
         // Compress, resize, and bulk resize image if options are set and the file is an image

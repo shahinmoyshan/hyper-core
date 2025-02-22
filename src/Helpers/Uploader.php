@@ -54,7 +54,7 @@ trait Uploader
         foreach ($this->uploads() as $upload) {
             // Get the name of the file input field
             $name = $upload['name'];
-            $upload['uploadDir'] = env('upload_dir') . '/' . ($upload['uploadTo'] ?? '');
+            $upload['uploadDir'] = dir_path(env('upload_dir') . '/' . ($upload['uploadTo'] ?? ''));
             unset($upload['name'], $upload['uploadTo']);
 
             // Perform the file upload
@@ -184,7 +184,8 @@ trait Uploader
     protected function removeFiles(string|array $files): void
     {
         foreach ((array) $files as $file) {
-            if (is_file($filePath = env('upload_dir') . '/' . $file) && file_exists($filePath)) {
+            $filePath = dir_path(env('upload_dir') . '/' . $file);
+            if (is_file($filePath)) {
                 unlink($filePath);
             }
         }
@@ -208,7 +209,7 @@ trait Uploader
             return $paths;
         }
 
-        $path = str_ireplace($basePath, '', $path);
+        $path = str_replace($basePath, '', $path);
         $path = trim($path, DIRECTORY_SEPARATOR);
         $path = trim($path, '/');
 

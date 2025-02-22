@@ -119,17 +119,17 @@ class Validator
 
         // Error messages for each validation rule
         $this->errors[$field][] = match ($rule) {
-            'required' => __("the %s field is required", $prettyField),
-            'email' => __("the %s field must be a valid email address", $prettyField),
-            'url' => __("the %s field must be a valid URL", $prettyField),
-            'number' => __("the %s field must be a number", $prettyField),
-            'array' => __("the %s field must be an array", $prettyField),
-            'text' => __("the %s field must be a text", $prettyField),
-            'min' => __("the %s field must be at least %s characters long", [$prettyField, $params[0] ?? 0]),
-            'max' => __("the %s field must not exceed %s characters", [$prettyField, $params[0] ?? 0]),
-            'length' => __("the %s field must be %s characters", [$prettyField, $params[0] ?? 0]),
-            'equal' => __("the %s field must be equal to %s field", [$prettyField, __($this->parseFieldName($params[0] ?? ''))]),
-            default => __("the %s field has an invalid value", $prettyField)
+            'required' => __("The %s field is required.", $prettyField),
+            'email' => __("The %s field must be a valid email address.", $prettyField),
+            'url' => __("The %s field must be a valid URL.", $prettyField),
+            'number' => __("The %s field must be a number.", $prettyField),
+            'array' => __("The %s field must be an array.", $prettyField),
+            'text' => __("The %s field must be a text.", $prettyField),
+            'min' => __("The %s field must be at least %s characters long.", [$prettyField, $params[0] ?? 0]),
+            'max' => __("The %s field must not exceed %s characters.", [$prettyField, $params[0] ?? 0]),
+            'length' => __("The %s field must be %s characters.", [$prettyField, $params[0] ?? 0]),
+            'equal' => __("The %s field must be equal to %s field.", [$prettyField, __($this->parseFieldName($params[0] ?? ''))]),
+            default => __("The %s field has an invalid value.", $prettyField)
         };
     }
 
