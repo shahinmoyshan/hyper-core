@@ -209,7 +209,7 @@ trait Uploader
             return $paths;
         }
 
-        $path = str_replace($basePath, '', $path);
+        $path = str_replace(dir_path($basePath), '', dir_path($path));
         $path = trim($path, DIRECTORY_SEPARATOR);
         $path = trim($path, '/');
 
