@@ -218,22 +218,6 @@ function url(string $path = ''): string
 }
 
 /**
- * Generate a URL from a given path relative to the public directory.
- *
- * The path can be relative or absolute. If it is relative, it will be
- * resolved relative to the public directory. If it is absolute,
- * it will be returned verbatim.
- *
- * @param string $path The path to generate a URL for.
- *
- * @return string The generated URL.
- */
-function public_url(string $path = ''): string
-{
-    return url('public/' . ltrim($path, '/'));
-}
-
-/**
  * Generate a URL from a given path relative to the asset directory.
  *
  * The path can be relative or absolute. If it is relative, it will be
@@ -324,6 +308,22 @@ function root_dir(string $path = '/'): string
 function storage_dir(string $path = '/'): string
 {
     return dir_path(env('storage_dir') . '/' . ltrim($path, '/'));
+}
+
+/**
+ * Get the upload directory path with an optional appended path.
+ *
+ * This function returns the upload directory path, optionally appending a
+ * specified sub-path to it. The resulting path is normalized with a single
+ * trailing slash.
+ *
+ * @param string $path The sub-path to append to the upload directory path. Default is '/'.
+ *
+ * @return string The full path to the upload directory, including the appended sub-path.
+ */
+function upload_dir(string $path = '/'): string
+{
+    return dir_path(env('upload_dir') . '/' . ltrim($path, '/'));
 }
 
 /**
