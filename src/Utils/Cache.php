@@ -215,6 +215,17 @@ class Cache
     }
 
     /**
+     * Retrieves the metadata for the given cache key.
+     *
+     * @param string $key The cache key.
+     * @return mixed The metadata for the given cache key, or null if not found.
+     */
+    public function metadata(string $key): mixed
+    {
+        return $this->cacheData[$key] ?? null;
+    }
+
+    /**
      * Retrieves all data from the cache, optionally erasing expired entries.
      *
      * @param bool $eraseExpired Whether to erase expired entries before retrieval.

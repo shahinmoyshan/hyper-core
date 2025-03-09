@@ -634,12 +634,12 @@ function validator(array $rules, ?array $data = null): Sanitizer
 /**
  * Escapes a string for safe output in HTML by converting special characters to HTML entities.
  *
- * @param string $text The string to be escaped.
+ * @param null|string $text The string to be escaped.
  * @return string The escaped string, safe for HTML output.
  */
-function _e(string $text): string
+function _e(?string $text): string
 {
-    return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars($text ?? '', ENT_QUOTES, 'UTF-8');
 }
 
 /**

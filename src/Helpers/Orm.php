@@ -376,9 +376,11 @@ trait Orm
                 array_map('trim', explode(',', request()->post("_{$config['table']}", '')))
             );
             $new_ids = request()->post($config['table'], []);
-            $new_ids = is_string($new_ids) ? array_filter(
-                array_map('trim', explode(',', $new_ids))
-            ) : $new_ids;
+            $new_ids = array_filter(
+                is_string($new_ids) ? array_filter(
+                    array_map('trim', explode(',', $new_ids))
+                ) : $new_ids
+            );
 
             $remove_ids = array_diff($old_ids, $new_ids);
             $create_ids = array_diff($new_ids, $old_ids);
