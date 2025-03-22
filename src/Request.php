@@ -243,6 +243,17 @@ class Request
     }
 
     /**
+     * Checks if the current request is a POST, PUT, PATCH, or DELETE request.
+     * 
+     * @return bool True if the request is a POST, PUT, PATCH, or DELETE request, false otherwise.
+     */
+    public function isPostBack(): bool
+    {
+        // Check if the current request method is in the list of supported methods
+        return in_array($this->method, ['POST', 'PUT', 'PATCH', 'DELETE']);
+    }
+
+    /**
      * Checks if the current request method matches any of the specified methods.
      * 
      * @param string|array $methods The method or array of methods to check against.
@@ -254,7 +265,7 @@ class Request
         $methods = array_map('strtoupper', (array) $methods);
 
         // Check if the current request method is in the list of methods
-        return in_array(strtoupper($this->method), $methods);
+        return in_array($this->method, $methods);
     }
 
     /**

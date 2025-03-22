@@ -29,9 +29,9 @@ class Hash
      */
     public function __construct(private ?string $key = null)
     {
-        // Get the key from the environment if not provided, otherwise use the default key
+        $key ??= env('app_key'); // Get the key from the environment if not provided, otherwise use the default key
         if ($key === null) {
-            $key = env('app_key', 'vHQBPufA2RSQYuk/ySGkBzQwrs6m1aM/NCdhx+DczhA=');
+            throw new Exception('Encryption key not provided.');
         }
 
         $this->setKey($key);

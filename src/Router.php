@@ -94,6 +94,20 @@ class Router
     }
 
     /**
+     * Add an OPTIONS route to the router.
+     * 
+     * @param string $path The path for the OPTIONS route.
+     * @param callable|string|array $callback The handler or callback for the OPTIONS route.
+     * 
+     * @return self Returns the router instance to allow method chaining.
+     */
+    public function options(string $path, callable|string|array $callback): self
+    {
+        $this->add($path, 'OPTIONS', $callback);
+        return $this;
+    }
+
+    /**
      * Add a route with a template to the router.
      * 
      * @param string $path The path for the route.
@@ -267,9 +281,14 @@ class Router
      */
     private function match($routeMethod, $routePath, Request $request): bool
     {
-        // Check if the request method is allowed for this route
-        if (!in_array($request->getMethod(), (array) $routeMethod)) {
-            return false;
+        if ($routeMethod !== '*') {
+            // Convert route method to uppercase
+            $routeMethod = array_map('strtoupper', (array) $routeMethod);
+
+            // Check if the request method is allowed for this route
+            if (!in_array($request->getMethod(), $routeMethod)) {
+                return false;
+            }
         }
 
         // Create route pattern with optional named parameters, Ex: /users/{id?}

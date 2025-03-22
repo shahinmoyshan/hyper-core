@@ -161,11 +161,6 @@ class Database
             $options
         );
 
-        // Enable checking foreign keys for sqlite database.
-        if ($this->config['driver'] === 'sqlite') {
-            $this->pdo->exec('PRAGMA foreign_keys = ON;');
-        }
-
         return $this;
     }
 

@@ -122,4 +122,17 @@ class Response
         // send output to client.
         echo $this->content;
     }
+
+    /**
+     * Converts the response to a string by returning the response content.
+     *
+     * This method is automatically called when the response is used in a string context.
+     * For example, when echo-ing the response or when using the response in a concatenation.
+     *
+     * @return string The response content as a string.
+     */
+    public function __toString(): string
+    {
+        return $this->content;
+    }
 }

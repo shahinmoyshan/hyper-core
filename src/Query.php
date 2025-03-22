@@ -892,7 +892,7 @@ class Query
      * @param PDOStatement $statement The prepared PDO statement to bind values.
      * @return void
      */
-    private function bindWhere(&$statement): void
+    private function bindWhere(PDOStatement &$statement): void
     {
         // Bind where clause values to filter records.
         foreach ($this->where['bind'] ?? [] as $param => $value) {

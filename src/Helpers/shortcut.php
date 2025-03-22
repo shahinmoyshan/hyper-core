@@ -18,12 +18,22 @@ use Hyper\Utils\Sanitizer;
 use Hyper\Utils\Validator;
 
 /**
- * Get the current application instance.
+ * Retrieve the application instance.
  *
- * @return Application
+ * This function returns the application instance, which is the top-level class
+ * responsible for managing the application's lifecycle.
+ *
+ * @param string $abstract [optional] The abstract name or class name of the service or value to retrieve.
+ *                          If not provided, the application instance is returned.
+ *
+ * @return Application The application instance or the resolved instance of the specified class or interface.
  */
-function app(): Application
+function app(?string $abstract = null): Application
 {
+    if ($abstract !== null) {
+        return get($abstract);
+    }
+
     return Application::$app;
 }
 
@@ -94,20 +104,47 @@ function singleton(string $abstract, $concrete = null): void
 /**
  * Get the current request instance.
  *
- * @return Request
+ * @param string|string[] $key The key to retrieve from the request data.
+ * @param mixed $default The default value to return if the key does not exist.
+ *
+ * @return Request|mixed The current request instance or the value of the specified key from the request data.
  */
-function request(): Request
+function request($key = null, $default = null): mixed
 {
+    if ($key !== null) {
+        // Retrieve the request input as an array.
+        $input = get(Request::class)->all((array) $key);
+
+        if (is_string($key)) {
+            // Return the value of the specified key if it exists, otherwise the default.
+            return $input[$key] ?? $default;
+        }
+
+        // Return the entire request input array.
+        return $input;
+    }
+
+    // Return the current request instance.
     return get(Request::class);
 }
 
 /**
- * Get the current response instance.
+ * Get the current response instance or create a new one with provided data.
  *
- * @return Response
+ * This function returns the current response instance. If arguments are provided,
+ * it creates a new response instance with those arguments.
+ *
+ * @param mixed $args Optional arguments to create a new response instance.
+ * @return Response The response instance.
  */
-function response(): Response
+function response(...$args): Response
 {
+    if (!empty($args)) {
+        // Create and return a new Response with the provided arguments.
+        return new Response(...$args);
+    }
+
+    // Return the existing Response instance from the container.
     return get(Response::class);
 }
 
@@ -124,19 +161,31 @@ function redirect(string $url, bool $replace = true, int $httpCode = 0): void
 }
 
 /**
- * Retrieve the session instance or a specific session value.
+ * Manage session data by setting or retrieving values.
  *
- * If arguments are provided, the function will return the session value
- * for the given keys. If no arguments are provided, it will return the
- * session instance.
+ * This function can be used to set multiple session variables by passing an associative array,
+ * or to retrieve a single session value by passing a string key.
  *
- * @param mixed ...$args The keys to retrieve from the session.
- * @return mixed|Session The session instance or the value of the specified session keys.
+ * @param array|string|null $param An associative array for setting session data, a string key for retrieving a value, or null to return the session instance.
+ * @param mixed $default The default value to return if the key does not exist.
+ * @return Session|mixed The session instance, the value of the specified key, or the default value if the key does not exist.
  */
-function session(...$args): mixed
+function session($param = null, $default = null): mixed
 {
     $session = get(Session::class);
-    return !empty($args) ? $session->get(...$args) : $session;
+
+    if (is_array($param)) {
+        // Set multiple session variables from the associative array.
+        foreach ($param as $key => $value) {
+            $session->set($key, $value);
+        }
+    } elseif ($param !== null) {
+        // Retrieve a single session value by key.
+        return $session->get($param, $default);
+    }
+
+    // Return the session instance.
+    return $session;
 }
 
 /**
@@ -414,13 +463,27 @@ function env(string $key, $default = null): mixed
  */
 function csrf_token(): ?string
 {
+    $token = cookie('csrf_token');
+
     // Generate a new token if it doesn't exist
-    if (!session()->has('_token')) {
-        session()->set('_token', bin2hex(random_bytes(32)));
+    if (empty($token)) {
+        $token = bin2hex(random_bytes(32));
+        cookie([
+            'csrf_token',
+            $token,
+            [
+                'expires' => time() + 21600,  // Expire in 6 hours
+                'path' => '/',           // Available site-wide
+                'domain' => '',            // Default to current domain
+                'secure' => true,          // Only send over HTTPS
+                'httponly' => false,         // Must be false so JavaScript can read it
+                'samesite' => 'Strict'       // Prevent cross-site requests
+            ]
+        ]);
     }
 
     // Return the token
-    return session('_token');
+    return $token;
 }
 
 /**
@@ -452,7 +515,7 @@ function csrf(): string
  */
 function method(string $method): string
 {
-    return sprintf('<input type="hidden" name="_method" value="%s" />', $method);
+    return sprintf('<input type="hidden" name="_method" value="%s" />', strtoupper($method));
 }
 
 /**
@@ -635,7 +698,7 @@ function validator(array $rules, ?array $data = null): Sanitizer
  * Escapes a string for safe output in HTML by converting special characters to HTML entities.
  *
  * @param null|string $text The string to be escaped.
- * @return string The escaped string, safe for HTML output.
+ * @return ?string The escaped string, safe for HTML output.
  */
 function _e(?string $text): string
 {
@@ -662,4 +725,30 @@ function __e(string $text, $arg = null, array $args = [], array $args2 = []): st
     return _e(
         __($text, $arg, $args, $args2)
     );
+}
+
+/**
+ * Retrieve or set a cookie value.
+ *
+ * This function allows you to either retrieve the value of a cookie by name,
+ * or set a new cookie using an array of parameters. When setting a cookie,
+ * the parameters should be passed in an array format compatible with setcookie().
+ *
+ * @param array|string $param The name of the cookie to retrieve, or an array of parameters to set a cookie.
+ * @param mixed $default The default value to return if the cookie is not set and a string name is provided.
+ * @return mixed The value of the cookie if retrieving, or the result of setcookie() if setting.
+ */
+function cookie(array|string $param, $default = null): mixed
+{
+    // Check if setting a cookie
+    if (is_array($param)) {
+        $values = array_values($param);
+        $_COOKIE[$values[0]] = $values[1];
+
+        // Set the cookie using the provided parameters
+        return setcookie(...$param);
+    }
+
+    // Retrieve the cookie value or return the default value if not set
+    return $_COOKIE[$param] ?? $default;
 }

@@ -4,10 +4,12 @@ namespace Hyper;
 
 use Exception;
 use ReflectionClass;
+use ReflectionFunction;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionUnionType;
 use ReflectionMethod;
+use Reflector;
 
 /**
  * Class Container
@@ -167,8 +169,12 @@ class Container
     public function call(array|string|callable $abstract, array $parameters = [])
     {
         if (is_callable($abstract)) {
-            // If it's a closure or callable, just call it with parameters
-            return $abstract(...$parameters);
+            // If it's a closure or callable, just call it with dependencies
+            $reflectionFunction = new ReflectionFunction($abstract);
+            $dependencies = $this->getReflectorDependencies($reflectionFunction, $parameters);
+
+            // Call the closure
+            return $abstract(...$dependencies);
         }
 
         // Split class and method from the "ClassName@methodName" format
@@ -192,14 +198,40 @@ class Container
         $reflectionMethod = new ReflectionMethod($instance, $method);
 
         // Resolve method parameters
-        $dependencies = array_map(
-            fn($param) => $parameters[$param->getName()] ?? $this->resolveParameter($param),
-            $reflectionMethod->getParameters()
-        );
-
+        $dependencies = $this->getReflectorDependencies($reflectionMethod, $parameters);
 
         // Call the method with resolved parameters
         return $reflectionMethod->invokeArgs($instance, $dependencies);
+    }
+
+    /**
+     * Resolves the dependencies of a reflected method or function.
+     *
+     * Resolves the method or function's parameters by first checking if a parameter has been
+     * explicitly set in the $parameters array. If not, the method attempts to resolve the
+     * parameter by calling the resolveParameter method.
+     *
+     * @param Reflector $reflector The reflected method or function.
+     * @param array $parameters The parameters to use for resolving dependencies.
+     *
+     * @return array The resolved dependencies.
+     */
+    private function getReflectorDependencies(Reflector $reflector, array $parameters): array
+    {
+        $dependencies = array_map(
+            /**
+             * Resolve a parameter by first checking if it has been set in the $parameters array.
+             * If not, attempt to resolve it by calling the resolveParameter method.
+             *
+             * @param ReflectionParameter $param The parameter to resolve.
+             *
+             * @return mixed The resolved parameter.
+             */
+            fn(ReflectionParameter $param) => $parameters[$param->getName()] ?? $this->resolveParameter($param),
+            $reflector->getParameters()
+        );
+
+        return $dependencies;
     }
 
     /**

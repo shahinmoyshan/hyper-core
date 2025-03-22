@@ -2,6 +2,8 @@
 
 namespace Hyper;
 
+use Exception;
+
 /**
  * Class Template
  * 
@@ -40,9 +42,13 @@ class Template
      */
     public function __construct(?string $path = null)
     {
-        $this->setPath(
-            $path ?? env('template_dir')
-        );
+        $path ??= env('template_dir');
+
+        if ($path === null) {
+            throw new Exception('Template path is not set.');
+        }
+
+        $this->setPath($path);
     }
 
     /**
@@ -118,6 +124,49 @@ class Template
         }
 
         return $this;
+    }
+
+    /**
+     * Magic method to get a value from the template context.
+     *
+     * @param string $name The context key to retrieve.
+     * @return mixed The value associated with the key, or null if not set.
+     */
+    public function __get($name)
+    {
+        return $this->get($name);
+    }
+
+    /**
+     * Magic method to set a value in the template context.
+     *
+     * @param string $name The context key to set.
+     * @param mixed $value The value to associate with the key.
+     */
+    public function __set($name, $value)
+    {
+        $this->set($name, $value);
+    }
+
+    /**
+     * Magic method to check if a key exists in the template context.
+     *
+     * @param string $name The context key to check.
+     * @return bool True if the key exists, false otherwise.
+     */
+    public function __isset($name)
+    {
+        return $this->has($name);
+    }
+
+    /**
+     * Magic method to remove a key from the template context.
+     *
+     * @param string $name The context key to remove.
+     */
+    public function __unset($name)
+    {
+        $this->remove($name);
     }
 
     /**
