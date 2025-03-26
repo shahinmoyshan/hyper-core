@@ -165,6 +165,19 @@ trait Orm
     }
 
     /**
+     * Magic unset method to remove ORM data when it is unset.
+     * 
+     * @param string $name The name of the ORM relationship to remove.
+     * 
+     * @return void
+     */
+    public function __unset($name)
+    {
+        // Remove the ORM relationship from the data set.
+        unset($this->ormData[$name]);
+    }
+
+    /**
      * Handles loading of ORM data based on the specified configuration.
      * Supports different relationship types: 'one', 'many', and 'many-x'.
      * 

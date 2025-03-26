@@ -237,6 +237,39 @@ function template(string $template, array $context = []): Response
 }
 
 /**
+ * Renders a template with the given context.
+ *
+ * This function will render a template with the given context using the
+ * Template engine. If the request accepts JSON, it will return a JSON
+ * response with the rendered HTML and title. Otherwise, it will return a
+ * regular HTTP response with the rendered HTML.
+ *
+ * @param string $template The path to the template file to render.
+ * @param array $context An associative array of variables to pass to the template.
+ * @return Response The response object after writing the rendered content.
+ */
+function fireline(string $template, array $context = []): Response
+{
+    // Check if the request accepts JSON
+    if (request()->accept('application/json')) {
+        // Get the template engine
+        $engine = get(Template::class);
+
+        // Return a JSON response with the rendered HTML and title
+        return response()->json([
+            'html' => $engine->render($template, $context),
+            'title' => $engine->get('title'),
+        ])
+            ->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->setHeader('Pragma', 'no-cache')
+            ->setHeader('Expires', '0');
+    }
+
+    // Otherwise, return a regular HTTP response with the rendered HTML
+    return template($template, $context);
+}
+
+/**
  * Check if a template exists.
  *
  * @param string $template The name of the template file, without the .php extension.
@@ -459,31 +492,11 @@ function env(string $key, $default = null): mixed
  * random string that is generated when the application is booted. The CSRF
  * token is used to protect against cross-site request forgery attacks.
  *
- * @return string|null The CSRF token, or null if no token has been generated yet.
+ * @return string The CSRF token, or empty if no token has been generated yet.
  */
-function csrf_token(): ?string
+function csrf_token(): string
 {
-    $token = cookie('csrf_token');
-
-    // Generate a new token if it doesn't exist
-    if (empty($token)) {
-        $token = bin2hex(random_bytes(32));
-        cookie([
-            'csrf_token',
-            $token,
-            [
-                'expires' => time() + 21600,  // Expire in 6 hours
-                'path' => '/',           // Available site-wide
-                'domain' => '',            // Default to current domain
-                'secure' => true,          // Only send over HTTPS
-                'httponly' => false,         // Must be false so JavaScript can read it
-                'samesite' => 'Strict'       // Prevent cross-site requests
-            ]
-        ]);
-    }
-
-    // Return the token
-    return $token;
+    return session('csrf_token', '');
 }
 
 /**
@@ -643,11 +656,11 @@ function __(string $text, $arg = null, array $args = [], array $args2 = []): str
  * The Vite instance provides a convenient interface for interacting with the
  * development server and production build processes.
  *
- * @param array $config The configuration for the Vite instance.
+ * @param string|array $config The configuration for the Vite instance.
  *
  * @return Vite The Vite instance initialized with the given configuration.
  */
-function vite($config): Vite
+function vite(string|array $config = []): Vite
 {
     return get(Vite::class)
         ->configure($config);
@@ -661,14 +674,18 @@ function vite($config): Vite
  * it is safe for further processing.
  *
  * @param array $filter An optional array of filters to apply to the input data.
- * @return Sanitizer An instance of the sanitizer containing the sanitized input data.
+ * @return Sanitizer|array An instance of the sanitizer or an array of input data.
  */
-function input(array $filter = []): Sanitizer
+function input(array $filter = [], bool $sanitzer = true): mixed
 {
+    $data = request()->all($filter);
+
+    if (!$sanitzer) {
+        return $data;
+    }
+
     return get(Sanitizer::class)
-        ->setData(
-            request()->all($filter)
-        );
+        ->setData($data);
 }
 
 /**

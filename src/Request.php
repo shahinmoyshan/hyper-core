@@ -269,6 +269,20 @@ class Request
     }
 
     /**
+     * Checks if the current request is an AJAX request.
+     * 
+     * AJAX requests contain the 'X-Requested-With' header with the value 'xmlhttpRequest'.
+     * This method checks for the presence of this header to determine if the current
+     * request is an AJAX request.
+     * 
+     * @return bool True if the current request is an AJAX request, false otherwise.
+     */
+    public function isAjax(): bool
+    {
+        return strtolower($this->header('x-requested-with', '')) === 'xmlhttpRequest';
+    }
+
+    /**
      * Retrieves the URI path of the current request.
      * 
      * @return string The request URI path.

@@ -145,7 +145,9 @@ class Router
     {
         $key = array_key_last($this->routes);
         $this->routes[$name] = $this->routes[$key];
+
         unset($this->routes[$key]);
+
         return $this;
     }
 
@@ -291,33 +293,15 @@ class Router
             }
         }
 
-        // Create route pattern with optional named parameters, Ex: /users/{id?}
-        $pattern = preg_replace('/\/\{[a-zA-Z]+\?\}/', '(?:/([a-zA-Z0-9_-]+))?', $routePath);
-
-        // Create route pattern with required named parameters, Ex: /users/{id}
-        $pattern = preg_replace('/\{[a-zA-Z]+\}/', '([a-zA-Z0-9_-]+)', $pattern);
-
-        // Create route pattern with optional wildcards, Ex: /users/*
-        $pattern = str_replace(['/', '*'], ['\/', '(.*)'], $pattern);
+        // Escape special characters in the route path
+        $pattern = $this->escapeRoutePath($routePath);
 
         // Attempt to match the request path with the route pattern
         if (preg_match("/^$pattern\$/", $request->getPath(), $matches)) {
             array_shift($matches);
 
-            // Map matched segments to parameter names in the route path
-            if (preg_match_all('/\{([^\}]+)\}/', $routePath, $names)) {
-                if (count($names[1]) === count($matches)) {
-                    // If the number of parameter names matches the number of segments,
-                    // map the segments to the parameter names
-                    $matches = array_combine(
-                        array_map(
-                            fn($name) => str_replace('?', '', $name),
-                            $names[1]
-                        ),
-                        $matches
-                    );
-                }
-            }
+            // Map matched segments to parameter names
+            $matches = $this->getRouteParameters($routePath, $matches);
 
             // Set router parameters into reqouest class and return as route matched.
             $request->setRouteParams($matches);
@@ -326,5 +310,59 @@ class Router
 
         // returns as route not matched.
         return false;
+    }
+
+    /**
+     * Escapes special characters in the route path for use in regular expressions.
+     *
+     * Replaces '/' with '\/' and '*' with '(.*)'. Also replaces optional dynamic
+     * parameters (/{param?}/) with optional groups (?:/([a-zA-Z0-9_-]+))? and
+     * required dynamic parameters (/{param}/) with required groups ([a-zA-Z0-9_-]+).
+     *
+     * @param string $routePath The route path to escape.
+     *
+     * @return string The escaped route path.
+     */
+    private function escapeRoutePath(string $routePath): string
+    {
+        $pattern = preg_replace(
+            ['/\/\{[a-zA-Z]+\?\}/', '/\{[a-zA-Z]+\}/'],
+            ['(?:/([a-zA-Z0-9_-]+))?', '([a-zA-Z0-9_-]+)'],
+            $routePath
+        );
+
+        return str_replace(['/', '*'], ['\/', '(.*)'], $pattern);
+    }
+
+    /**
+     * Maps matched segments to parameter names in the route path.
+     *
+     * If the number of parameter names matches the number of segments, map the
+     * segments to the parameter names, otherwise return the original matches.
+     *
+     * @param string $routePath The route path to map.
+     * @param array $matches The matched segments.
+     *
+     * @return array The mapped parameters.
+     */
+    private function getRouteParameters(string $routePath, array $matches): array
+    {
+        // Map matched segments to parameter names in the route path
+        if (preg_match_all('/\{([^\}]+)\}/', $routePath, $names)) {
+            if (count($names[1]) === count($matches)) {
+                // If the number of parameter names matches the number of segments,
+                // map the segments to the parameter names
+                $matches = array_combine(
+                    array_map(
+                        fn($name) => str_replace('?', '', $name),
+                        $names[1]
+                    ),
+                    $matches
+                );
+            }
+        }
+
+        // Return the matched parameters
+        return $matches;
     }
 }

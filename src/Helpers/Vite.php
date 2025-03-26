@@ -115,8 +115,13 @@ class Vite
      */
     public function isRunning(string $entry): bool
     {
-        if ($this->config('running') !== null) {
-            return $this->config('running');
+        $isRunning = $this->config('running');
+        if ($isRunning !== null) {
+            return $isRunning;
+        }
+
+        if ($this->hasManifest()) {
+            return $this->config['running'] = false;
         }
 
         // live check if vite development server is running or not
@@ -184,9 +189,30 @@ class Vite
      */
     public function getManifest(): array
     {
-        $manifestPath = root_dir($this->config('dist_path') . $this->config('dist') . '/.vite/manifest.json');
         return $this->config['manifest'] ??=
-            file_exists($manifestPath) ? (array) json_decode(file_get_contents($manifestPath), true) : [];
+            $this->hasManifest() ? (array) json_decode(file_get_contents($this->getManifestPath()), true) : [];
+    }
+
+    /**
+     * Checks if the Vite manifest file exists.
+     * 
+     * @return bool
+     *   TRUE if the manifest file exists, FALSE otherwise.
+     */
+    public function hasManifest(): bool
+    {
+        return file_exists($this->getManifestPath());
+    }
+
+    /**
+     * Retrieves the path to the Vite manifest file.
+     * 
+     * @return string
+     *   The path to the Vite manifest file.
+     */
+    public function getManifestPath(): string
+    {
+        return root_dir($this->config('dist_path') . $this->config('dist') . '/.vite/manifest.json');
     }
 
     /**

@@ -96,7 +96,7 @@ class Tracer
     {
         // Clear any previous output
         if (ob_get_length()) {
-            ob_clean();
+            ob_end_clean();
         }
 
         // Set HTTP response code to 500 for server error.
