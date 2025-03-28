@@ -181,6 +181,7 @@ class Mail
     private function buildHeaders(): string
     {
         if ($this->isHtml) {
+            // Set the content type to HTML to allow for HTML email bodies.
             $this->headers[] = "MIME-Version: 1.0";
             $this->headers[] = "Content-type: text/html; charset=UTF-8";
         }
@@ -189,6 +190,13 @@ class Mail
             $boundary = md5(time());
             $this->headers[] = "Content-Type: multipart/mixed; boundary=\"$boundary\"";
 
+            /**
+             * Build the email body with attachments.
+             * 
+             * We use a boundary to separate the text/html part from the attachments.
+             * Each attachment is a separate part with its own Content-Type and Content-Disposition headers.
+             * We use base64 encoding to encode the attachments, and chunk_split() to split the encoded data into lines.
+             */
             $body = "--$boundary\r\n";
             $body .= "Content-Type: text/" . ($this->isHtml ? "html" : "plain") . "; charset=UTF-8\r\n";
             $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
@@ -203,6 +211,12 @@ class Mail
                     throw new Exception("Failed to read file: $filePath");
                 }
 
+                /**
+                 * Add an attachment to the email.
+                 * 
+                 * Set the Content-Type to application/octet-stream, and the Content-Disposition to attachment.
+                 * Use the file name as the name in the Content-Disposition header, and the file contents as the attachment data.
+                 */
                 $body .= "--$boundary\r\n";
                 $body .= "Content-Type: application/octet-stream; name=\"$fileName\"\r\n";
                 $body .= "Content-Transfer-Encoding: base64\r\n";
@@ -210,10 +224,13 @@ class Mail
                 $body .= chunk_split(base64_encode($fileData)) . "\r\n";
             }
 
+            /**
+             * Close the multipart/mixed boundary.
+             */
             $body .= "--$boundary--";
             $this->body = $body;
         }
 
-        return implode("\r\n", $this->headers);
+        return implode("\r\n", $this->headers); // implode the headers into a single string
     }
 }

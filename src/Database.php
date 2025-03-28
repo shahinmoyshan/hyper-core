@@ -143,10 +143,8 @@ class Database
         $dsn = $this->config['dsn'] ?? $this->buildDsn();
 
         // Merge PDO default options with config.
-        $options = array_merge(
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
-            $this->config['options'] ?? []
-        );
+        $options = $this->config['options'] ?? [];
+        $options += [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION];
 
         /** 
          * Create a new databse (PHP Data Object) connection.
