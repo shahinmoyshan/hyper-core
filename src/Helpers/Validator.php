@@ -52,7 +52,7 @@ trait Validator
                 $errorHtml = '<ul>' // Build the error HTML
                     . collect(array_merge(...array_values($errors)))
                         ->map(fn($error) => "<li>{$error}</li>")
-                        ->toString('</li><li>')
+                        ->toString()
                     . '</ul>';
 
                 // Return the errors as a JSON response
