@@ -15,6 +15,14 @@ use Exception;
 class Router
 {
     /**
+     * @var array $groupAttributes
+     * 
+     * Holds the shared attributes for a group of routes. This is used
+     * when defining a group of routes with common properties such as
+     * middleware, name prefix, or path prefix.
+     */
+    private array $groupAttributes = [];
+    /**
      * Construct a new router.
      *
      * @param array $routes An array of routes that should be added to the router.
@@ -108,14 +116,28 @@ class Router
     }
 
     /**
-     * Add a route with a template to the router.
+     * Add a route that matches any HTTP method to the router.
+     * 
+     * @param string $path The path for the route.
+     * @param callable|string|array $callback The handler or callback for the route.
+     * 
+     * @return self Returns the router instance to allow method chaining.
+     */
+    public function any(string $path, callable|string|array $callback): self
+    {
+        $this->add($path, '*', $callback);
+        return $this;
+    }
+
+    /**
+     * Add a route with a view to the router.
      * 
      * @param string $path The path for the route.
      * @param string $template The template to use for the route.
      * 
      * @return self Returns the router instance to allow method chaining.
      */
-    public function template(string $path, string $template): self
+    public function view(string $path, string $template): self
     {
         $this->add(path: $path, template: $template);
         return $this;
@@ -171,10 +193,52 @@ class Router
         string|null $name = null,
         string|array $middleware = []
     ): self {
+        // Set the default method to GET if not provided
+        $method ??= 'GET';
+
+        // Check if there are any group attributes to apply to the route
+        if (!empty($this->groupAttributes)) {
+
+            // Prepend the group path to the route path if it exists
+            if (isset($this->groupAttributes['path'])) {
+                $path = $this->groupAttributes['path'] . $path;
+            }
+
+            // Merge group methods with specified route methods
+            if (isset($this->groupAttributes['method'])) {
+                $method = array_merge((array) $this->groupAttributes['method'], (array) $method);
+            }
+
+            // Merge group middleware with specified route middleware
+            if (isset($this->groupAttributes['middleware'])) {
+                $middleware = array_merge((array) $this->groupAttributes['middleware'], (array) $middleware);
+            }
+
+            // Append group name to the route name if both are set
+            if (isset($name) && isset($this->groupAttributes['name'])) {
+                $name = $this->groupAttributes['name'] . $name;
+            }
+
+            // Prepend group template path to the route template if both are set
+            if (isset($template) && isset($this->groupAttributes['template'])) {
+                $template = $this->groupAttributes['template'] . $template;
+            }
+
+            // If group callback is set and no template is used, apply it to the callback
+            if (isset($this->groupAttributes['callback']) && $template === null) {
+                $callback = match (true) {
+                    $callback === null => $this->groupAttributes['callback'],
+                    is_string($callback) => [$this->groupAttributes['callback'], $callback],
+                    default => $callback, // original callback for closure or array
+                };
+            }
+        }
+
+
         // Define the route properties
         $route = [
             'path' => $path,
-            'method' => $method ?? 'GET',
+            'method' => $method,
             'callback' => $callback,
             'template' => $template,
             'middleware' => $middleware
@@ -188,6 +252,29 @@ class Router
         }
 
         return $this;
+    }
+
+    /**
+     * Adds a group of routes to the router with shared attributes.
+     * 
+     * The passed callback is called immediately. Any routes defined within the
+     * callback will have the given attributes applied to them.
+     * 
+     * @param array $attributes An array of shared attributes for the group of routes.
+     * @param callable $callback The callback that defines the group of routes.
+     * 
+     * @return void
+     */
+    public function group(array $attributes, callable $callback): void
+    {
+        // Store the group attributes that will be applied to all routes within the group
+        $this->groupAttributes = $attributes;
+
+        // Call the callback immediately to define the group of routes
+        $callback($this);
+
+        // Reset the group attributes after the callback has been executed
+        $this->groupAttributes = [];
     }
 
     /**
@@ -258,9 +345,9 @@ class Router
                     return $middlewareResponse;
                 }
 
-                // Handle template rendering or instantiate a class for callback if specified
+                // Handle view rendering or instantiate a class for callback if specified
                 if (isset($route['template'])) {
-                    $route['callback'] = fn() => template($route['template']);
+                    $route['callback'] = fn() => view($route['template']);
                 }
 
                 // Call the matched route's callback

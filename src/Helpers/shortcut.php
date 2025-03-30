@@ -3,12 +3,11 @@
 use Hyper\Application;
 use Hyper\Container;
 use Hyper\Database;
-use Hyper\Helpers\Vite;
 use Hyper\Query;
 use Hyper\Request;
 use Hyper\Response;
 use Hyper\Router;
-use Hyper\Template;
+use Hyper\View;
 use Hyper\Translator;
 use Hyper\Utils\Auth;
 use Hyper\Utils\Cache;
@@ -16,6 +15,7 @@ use Hyper\Utils\Collect;
 use Hyper\Utils\Session;
 use Hyper\Utils\Sanitizer;
 use Hyper\Utils\Validator;
+use Hyper\Utils\Vite;
 
 /**
  * Retrieve the application instance.
@@ -222,16 +222,16 @@ function query(string $table): Query
 }
 
 /**
- * Render a template and return the response.
+ * Render a view and return the response.
  *
  * @param string $template
  * @param array $context
  * @return Response
  */
-function template(string $template, array $context = []): Response
+function view(string $template, array $context = []): Response
 {
     return get(Response::class)->write(
-        get(Template::class)
+        get(View::class)
             ->render($template, $context)
     );
 }
@@ -251,9 +251,9 @@ function template(string $template, array $context = []): Response
 function fireline(string $template, array $context = []): Response
 {
     // Check if the request accepts JSON
-    if (request()->accept('application/json')) {
+    if (request()->isFirelineRequest()) {
         // Get the template engine
-        $engine = get(Template::class);
+        $engine = get(View::class);
 
         // Return a JSON response with the rendered HTML and title
         return response()->json([
@@ -266,21 +266,7 @@ function fireline(string $template, array $context = []): Response
     }
 
     // Otherwise, return a regular HTTP response with the rendered HTML
-    return template($template, $context);
-}
-
-/**
- * Check if a template exists.
- *
- * @param string $template The name of the template file, without the .php extension.
- *
- * @return bool True if the template exists, false otherwise.
- */
-function template_exists(string $template): bool
-{
-    return file_exists(
-        dir_path(env('template_dir') . '/' . str_replace('.php', '', $template) . '.php')
-    );
+    return view($template, $context);
 }
 
 /**
@@ -662,8 +648,12 @@ function __(string $text, $arg = null, array $args = [], array $args2 = []): str
  */
 function vite(string|array $config = []): Vite
 {
-    return get(Vite::class)
-        ->configure($config);
+    $vite = get(Vite::class);
+    if (func_num_args() > 0) {
+        return $vite->configure($config);
+    }
+
+    return $vite;
 }
 
 /**
@@ -768,4 +758,28 @@ function cookie(array|string $param, $default = null): mixed
 
     // Retrieve the cookie value or return the default value if not set
     return $_COOKIE[$param] ?? $default;
+}
+
+/**
+ * Get the errors from the current request.
+ *
+ * @param null|array|string $field The field name to retrieve the error messages for.
+ *                                  If null, all error object will be returned.
+ * @return object|bool An object containing the error messages from the current request.
+ */
+function errors(null|array|string $field = null): mixed
+{
+    return request()->errors($field);
+}
+
+/**
+ * Retrieve the old value of a given field from the previous request.
+ *
+ * @param string $field The field name to retrieve the old value for.
+ * @param string $default The default value to return if the field does not exist.
+ * @return string|null The old value of the field from the previous request, or the default value if not found.
+ */
+function old(string $field, string $default = null): ?string
+{
+    return request()->old($field, $default);
 }

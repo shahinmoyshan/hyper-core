@@ -2,9 +2,8 @@
 
 namespace Hyper;
 
+use Exception;
 use PDO;
-use ReflectionClass;
-use ReflectionProperty;
 
 /**
  * Class Model
@@ -15,17 +14,26 @@ use ReflectionProperty;
  * @package hyper
  * @author Shahin Moyshan <shahin.moyshan2@gmail.com>
  */
-class Model
+abstract class Model
 {
     /**
      * @var string The table name associated with this model.
      */
-    protected string $table;
+    public static string $table;
 
     /**
-     * @var int The ID of the model instance, representing the primary key.
+     * The primary key of the model.
+     *
+     * @var string Default value: 'id'
      */
-    public int $id;
+    public static string $primaryKey = 'id';
+
+    /**
+     * The model attributes.
+     *
+     * @var array
+     */
+    protected array $attributes = [];
 
     /**
      * model constructor.
@@ -33,7 +41,7 @@ class Model
      */
     public function __construct()
     {
-        if (isset($this->id)) {
+        if ($this->primaryValue()) {
             $this->decodeSavedData();
         }
     }
@@ -45,11 +53,8 @@ class Model
      */
     public static function query(): Query
     {
-        $model = new static();
-
         // Return a new database query builder object.
-        return get(Query::class)
-            ->table($model->table());
+        return get(Query::class)->table(static::$table);
     }
 
     /**
@@ -67,13 +72,13 @@ class Model
     /**
      * Finds a model by its primary key ID.
      *
-     * @param int $id The ID of the model to retrieve.
+     * @param int $value The Unique Identifier of the model to retrieve.
      * @return false|static The found model instance or false if not found.
      */
-    public static function find(int $id): false|static
+    public static function find($value): false|static
     {
         return self::get()
-            ->where(['id' => $id])
+            ->where([static::$primaryKey => $value])
             ->first();
     }
 
@@ -85,17 +90,14 @@ class Model
      */
     public static function load(array $data): static
     {
-        // Create & Holds a new model.
+        // Create & Hold a new model.
         $model = new static();
 
-        // Push every property of this model.
         foreach ($data as $key => $value) {
-            if (property_exists($model, $key)) {
-                $model->{$key} = $value;
-            }
+            $model->$key = $value;
         }
 
-        // Decode model properties from json to array.
+        // Decode model properties from JSON to array if necessary.
         $model->decodeSavedData();
 
         // Return the new model object.
@@ -110,16 +112,18 @@ class Model
     public function save(): int|bool
     {
         // Apply events for before save and encode array into json string. 
-        $data = $this->beforeSaveData(
-            $this->fillableData()
-        );
+        $data = $this->beforeSaveData($this->getInsertableData());
 
         // Update this records if it has an id, else insert this records into database.
-        $status = isset($this->id) ? $this->query()->update($data, ['id' => $this->id]) : $this->query()->insert($data);
+        if (!empty($this->primaryValue())) {
+            $status = $this->query()->update($data, [static::$primaryKey => $this->primaryValue()]);
+        } else {
+            $status = $this->query()->insert($data);
+        }
 
         // Save model id if it is newly created.
         if (is_int($status)) {
-            $this->id = $status;
+            $this->{static::$primaryKey} = $status;
         }
 
         // Apply model events after saved the record.
@@ -145,7 +149,7 @@ class Model
         $this->beforeRemoveData();
 
         // Remove this record from database.
-        $removed = $this->query()->delete(['id' => $this->id]);
+        $removed = $this->query()->delete([static::$primaryKey => $this->primaryValue()]);
 
         // Call events when this model is deleted.
         if ($removed) {
@@ -154,6 +158,40 @@ class Model
 
         // Returns database operation status.
         return $removed;
+    }
+
+    /**
+     * Retrieves the fillable fields of the model based on the $fillable and $guarded properties.
+     *
+     * If $fillable is defined, only the fields specified in the array are included unless
+     * explicitly restricted by the $guarded property. If $fillable is empty, all fields
+     * are included except the ones that are explicitly guarded by the $guarded property.
+     *
+     * @return array The fillable fields of the model.
+     */
+    private function getInsertableData(): array
+    {
+        $data = [];
+
+        $fillable = $this->fillable ?? [];
+        $guarded = $this->guarded ?? [];
+
+        if (!isset($this->fillable) && !isset($this->guarded)) {
+            throw new Exception('Either fillable or guarded must be defined for the modal: ' . static::class);
+        }
+
+        foreach ($this->attributes as $key => $value) {
+            // If fillable is defined, only allow fillable fields unless guarded explicitly restricts it.
+            if (!empty($fillable) && in_array($key, $fillable)) {
+                $data[$key] = $value;
+            }
+            // If fillable is empty, assume all fields are fillable except the guarded ones.
+            elseif (empty($fillable) && !in_array($key, $guarded)) {
+                $data[$key] = $value;
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -232,7 +270,7 @@ class Model
 
         // Removed uploaded files wich are associated with this model
         if (method_exists($this, 'removeUploaded')) {
-            $this->removeUploaded($this->fillableData());
+            $this->removeUploaded($this->attributes);
         }
     }
 
@@ -244,7 +282,7 @@ class Model
     private function decodeSavedData(): void
     {
         // Go Through all the properties of this model.
-        foreach ($this->toArray() as $key => $value) {
+        foreach ($this->attributes as $key => $value) {
             /** 
              * if the property is json format then decode json
              * string to associative array.
@@ -261,74 +299,73 @@ class Model
     }
 
     /**
-     * Gets the table name for the model.
+     * Gets the value of the primary key.
      *
-     * @return string The associated table name.
+     * @param mixed $default The value to return if the primary key is empty.
+     * @return mixed The value of the primary key or the default value.
      */
-    public function table(): string
+    public function primaryValue($default = null): mixed
     {
-        return $this->table;
+        return $this->{static::$primaryKey} ?? $default;
     }
 
     /**
-     * Retrieves an array of fields to be ignored.
+     * Magic setter method to set the value of a model attribute.
      *
-     * Checks if the model has an `__except` property and returns its value
-     * as an array of fields to be ignored. If the property does not exist,
-     * an empty array is returned.
-     *
-     * @return array An array of field names to be ignored.
+     * @param string $name The name of the attribute to set.
+     * @param mixed $value The value to set.
+     * @return void
      */
-    public function ignoredFields(): array
+    public function __set($name, $value)
     {
-        if (property_exists($this, '__except')) {
-            return $this->__except;
-        }
-
-        return [];
+        $this->attributes[$name] = $value;
     }
 
     /**
-     * Retrieves an array of the model's fillable data.
+     * Magic getter method to retrieve the value of a model attribute.
      *
-     * This function utilizes reflection to get the public properties of the model
-     * and returns them as an associative array if they are set.
-     *
-     * @return array An associative array of public properties and their values.
+     * @param string $name The name of the attribute to retrieve.
+     * @return mixed|null The value of the attribute if set, or null if not set.
      */
-    public function fillableData(): array
+    public function __get($name)
     {
-        // Get the defined fillable properties.
-        if (property_exists($this, '__fillable')) {
-            $publicProperties = $this->__fillable;
-        } else {
-            // Generate fillable properties
-            $reflection = new ReflectionClass($this);
-            // Get all public properties of the class
-            $publicProperties = collect(
-                $reflection->getProperties(ReflectionProperty::IS_PUBLIC)
-            )
-                ->map(fn($property) => $property->getName())
-                ->all();
+        if (!isset($this->attributes[$name]) && method_exists($this, 'getFromOrm')) {
+            return $this->getFromOrm($name);
         }
 
-        // Get the properties to exclude
-        $except = property_exists($this, '__except') ? $this->__except : [];
+        return $this->attributes[$name] ?? null;
+    }
 
-        $result = [];
-        // Iterate over each public property
-        foreach ($publicProperties as $property) {
-            // Check if the property should be excluded
-            if (in_array($property, $except)) {
-                continue;
-            }
-
-            // Get the value of the property, or set it to null if not set
-            $result[$property] = $this->{$property} ?? null;
+    /**
+     * Checks if the specified model attribute is set.
+     *
+     * @param string $name The name of the attribute to check.
+     * @return bool True if the attribute is set, false otherwise.
+     */
+    public function __isset($name)
+    {
+        if (isset($this->attributes[$name])) {
+            return true;
+        } elseif (method_exists($this, 'existsInOrm')) {
+            return $this->existsInOrm($name);
         }
 
-        // Return the associative array of properties and their values
-        return $result;
+        return false;
+    }
+
+    /**
+     * Magic unset method to remove the specified model attribute.
+     *
+     * @param string $name The name of the attribute to remove.
+     * @return void
+     */
+    public function __unset($name)
+    {
+        if (isset($this->attributes[$name])) {
+            unset($this->attributes[$name]);
+        } elseif (method_exists($this, 'removeFromOrm')) {
+            $this->removeFromOrm($name);
+        }
     }
 
     /**
@@ -338,7 +375,7 @@ class Model
      */
     public function toArray(): array
     {
-        return get_object_vars($this);
+        return $this->attributes;
     }
 
     /**
@@ -372,6 +409,6 @@ class Model
      */
     public function __toString()
     {
-        return sprintf('model: (%s), %s(%d)', static::class, $this->table, $this->id ?? '#');
+        return sprintf('model: (%s), %s(%d)', static::class, static::$table, $this->primaryValue('#'));
     }
 }

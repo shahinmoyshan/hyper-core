@@ -19,10 +19,10 @@ use RuntimeException;
 trait Orm
 {
     /**
-     * @var array $ormData
+     * @var array $orm
      * Holds the loaded ORM data for the current instance.
      */
-    private array $ormData;
+    private array $orm;
 
     /**
      * The ORM configuration for the current model.
@@ -131,21 +131,21 @@ trait Orm
      * 
      * @throws RuntimeException If lazy loading is disabled for the requested relationship.
      */
-    public function __get($name)
+    protected function getFromOrm($name)
     {
-        if (isset($this->ormData[$name])) {
-            return $this->ormData[$name];
+        if (isset($this->orm[$name])) {
+            return $this->orm[$name];
         }
 
         // load lazy orm data
         $config = $this->orm()[$name] ?? false;
         if ($config) {
             if (isset($config['lazy']) && !$config['lazy']) {
-                throw new RuntimeException("Lazy load has been disabled for Orm({$name}), " . static::class);
+                throw new RuntimeException("Lazy load has been disabled for {$name}, " . static::class);
             }
 
             $this->handleOrm([$this], $config, $name);
-            return $this->ormData[$name];
+            return $this->orm[$name];
         }
 
         return null;
@@ -157,11 +157,11 @@ trait Orm
      * @param string $name The name of the ORM relationship to check.
      * @return bool True if the relationship has been set, false otherwise.
      */
-    public function __isset($name)
+    protected function existsInOrm($name)
     {
         // If the relationship is not set, return false.
         // Otherwise, return true if the relationship is not empty.
-        return $this->__get($name) !== null && !empty($this->__get($name));
+        return $this->getFromOrm($name) !== null && !empty($this->getFromOrm($name));
     }
 
     /**
@@ -171,10 +171,10 @@ trait Orm
      * 
      * @return void
      */
-    public function __unset($name)
+    protected function removeFromOrm($name)
     {
         // Remove the ORM relationship from the data set.
-        unset($this->ormData[$name]);
+        unset($this->orm[$name]);
     }
 
     /**
@@ -212,23 +212,25 @@ trait Orm
             throw new RuntimeException("No intermediate table specified for Orm({$with})");
         }
 
+        $primaryKey = static::$primaryKey;
+
         $model = new $config['model'];
         $ids = collect($data)
-            ->pluck('id')
+            ->pluck($primaryKey)
             ->unique();
 
         // get or genarate foreign for forriegn model
-        $foreignKey = $config['foreignKey'] ?? $model->table() . '_id';
+        $foreignKey = $config['foreignKey'] ?? $model::$table . '_id';
 
         // get or genarate local for currennt/loccal model
-        $localKey = $config['localKey'] ?? $this->table() . '_id';
+        $localKey = $config['localKey'] ?? static::$table . '_id';
 
         // get objects from intermediate table
         $objects = $ids->count() > 0 ? $this->applyCallback(
             $model->query()
                 ->fetch(PDO::FETCH_ASSOC)
                 ->select("p.*, t1.{$foreignKey}, t1.{$localKey}")
-                ->join($config['table'], "t1.{$foreignKey} = p.id")
+                ->join($config['table'], "t1.{$foreignKey} = p.{$primaryKey}")
                 ->where([
                     "t1.{$localKey}" => $ids->all()
                 ]),
@@ -250,11 +252,11 @@ trait Orm
     {
         $model = new $config['model'];
         $ids = collect($data)
-            ->pluck('id')
+            ->pluck(static::$primaryKey)
             ->unique();
 
         // get or genarate local for currennt/loccal model
-        $localKey = $config['localKey'] ?? $this->table() . '_id';
+        $localKey = $config['localKey'] ?? static::$table . '_id';
 
         // get objects from foreign table
         $objects = $ids->count() > 0 ? $this->applyCallback(
@@ -282,17 +284,17 @@ trait Orm
     private function parseOrmData(array $data, $objects, $model, $with): array
     {
         // get or genarate localkey for currennt/loccal model
-        $localKey = $config['localKey'] ?? $this->table() . '_id';
+        $localKey = $config['localKey'] ?? static::$table . '_id';
 
         // attach related data
         foreach ($data as $d) {
-            if (!isset($d->ormData[$with])) {
-                $d->ormData[$with] = [];
+            if (!isset($d->orm[$with])) {
+                $d->orm[$with] = [];
             }
 
             foreach ($objects as $o) {
-                if ($o[$localKey] === $d->id) {
-                    $d->ormData[$with][] = $model->load($o);
+                if ($o[$localKey] === $d->{static::$primaryKey}) {
+                    $d->orm[$with][] = $model->load($o);
                 }
             }
         }
@@ -313,10 +315,10 @@ trait Orm
         $model = new $config['model'];
 
         // get or genarate foreign for forriegn model
-        $foreignKey = $config['foreignKey'] ?? $model->table() . '_id';
+        $foreignKey = $config['foreignKey'] ?? $model::$table . '_id';
 
         // get or genarate local for currennt/loccal model
-        $localKey = $config['localKey'] ?? 'id';
+        $localKey = $config['localKey'] ?? static::$primaryKey;
 
         // get ids from main data
         $ids = collect($data)
@@ -335,13 +337,13 @@ trait Orm
 
         // attach related data
         foreach ($data as $d) {
-            if (!isset($d->ormData[$with])) {
-                $d->ormData[$with] = false;
+            if (!isset($d->orm[$with])) {
+                $d->orm[$with] = false;
             }
 
             foreach ($objects as $o) {
                 if ($o[$localKey] === $d->{$foreignKey}) {
-                    $d->ormData[$with] = $model->load($o);
+                    $d->orm[$with] = $model->load($o);
                     break;
                 }
             }
@@ -402,14 +404,14 @@ trait Orm
             $query = query($config['table']);
 
             // get or genarate foreignkey and localkey
-            $foreignKey = $config['foreignKey'] ?? $model->table() . '_id';
-            $localKey = $config['localKey'] ?? $this->table() . '_id';
+            $foreignKey = $config['foreignKey'] ?? $model::$table . '_id';
+            $localKey = $config['localKey'] ?? static::$table . '_id';
 
             if (!empty($create_ids)) {
                 $ids = collect($create_ids)
                     ->map(fn($id) => [
                         $foreignKey => $id,
-                        $localKey => $this->id,
+                        $localKey => $this->primaryValue(),
                     ])
                     ->all();
                 $query->insert(array_values($ids));
@@ -417,7 +419,7 @@ trait Orm
             }
 
             if (!empty($remove_ids)) {
-                $query->delete([$localKey => $this->id, $foreignKey => $remove_ids]);
+                $query->delete([$localKey => $this->primaryValue(), $foreignKey => $remove_ids]);
                 $status = true;
             }
         }

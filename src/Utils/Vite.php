@@ -1,6 +1,6 @@
 <?php
 
-namespace Hyper\Helpers;
+namespace Hyper\Utils;
 
 use Hyper\Utils\Ping;
 
@@ -46,11 +46,10 @@ class Vite
             'host' => 'localhost',
             'port' => 5133,
             'running' => null,
-            'reactRefresh' => false,
-            'root' => '/resources/',
+            'root' => '/',
             'entry' => 'app.js',
             'dist' => 'build',
-            'dist_path' => 'public/resources/',
+            'dist_path' => 'public/assets/',
             'manifest' => null,
         ], $config);
 
@@ -76,8 +75,7 @@ class Vite
      */
     public function __toString(): string
     {
-        return $this->reactRefreshTag($this->config('entry'))
-            . $this->jsTag($this->config('entry'))
+        return $this->jsTag($this->config('entry'))
             . $this->jsPreloadImports($this->config('entry'))
             . $this->cssTag($this->config('entry'));
     }
@@ -92,7 +90,7 @@ class Vite
     public function reactRefreshTag(string $entry): string
     {
         $tag = '';
-        if ($this->config('reactRefresh') && $this->isRunning($entry)) {
+        if ($this->isRunning($entry)) {
             $tag = <<<HTML
                 <script type="module">
                     import RefreshRuntime from "{$this->serverUrl('@react-refresh')}";
@@ -245,6 +243,22 @@ class Vite
         }
 
         return $urls;
+    }
+
+    /**
+     * Returns the URL for the given asset, taking into account if the Vite
+     * development server is running or not.
+     * 
+     * If the development server is running, the URL for the asset on the server
+     * is returned. Otherwise, the URL for the asset in the build directory is
+     * returned.
+     * 
+     * @param string $entry The asset file name.
+     * @return string The URL for the asset.
+     */
+    public function asset(string $entry): string
+    {
+        return $this->isRunning($entry) ? $this->serverUrl($entry) : $this->assetUrl($entry);
     }
 
     /**

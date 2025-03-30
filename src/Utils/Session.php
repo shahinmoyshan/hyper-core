@@ -105,4 +105,51 @@ class Session
     {
         return session_id();
     }
+
+    /**
+     * Sets a flash message that will be available for one request only.
+     *
+     * @param string $key The flash message key.
+     * @param mixed $value The value to store.
+     * @return void
+     */
+    public function flash(string $key, $value): void
+    {
+        $_SESSION['_flash'][$key] = $value;
+    }
+
+    /**
+     * Retrieves a flash message by key and removes it from the session.
+     *
+     * @param string $key The flash message key.
+     * @param mixed $default Default value if key does not exist.
+     * @return mixed The flash message value or default if not found.
+     */
+    public function getFlash(string $key, $default = null)
+    {
+        $value = $_SESSION['_flash'][$key] ?? $default;
+        unset($_SESSION['_flash'][$key]);
+        return $value;
+    }
+
+    /**
+     * Checks if a flash message exists.
+     *
+     * @param string $key The flash message key.
+     * @return bool True if the flash message exists, false otherwise.
+     */
+    public function hasFlash(string $key): bool
+    {
+        return isset($_SESSION['_flash'][$key]);
+    }
+
+    /**
+     * Clears all flash messages.
+     *
+     * @return void
+     */
+    public function clearFlash(): void
+    {
+        unset($_SESSION['_flash']);
+    }
 }

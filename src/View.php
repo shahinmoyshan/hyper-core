@@ -3,16 +3,17 @@
 namespace Hyper;
 
 use Exception;
+use Hyper\Utils\Session;
 
 /**
- * Class Template
+ * Class View
  * 
  * Handles template rendering with optional layout
  * 
  * @package hyper
  * @author Shahin Moyshan <shahin.moyshan2@gmail.com>
  */
-class Template
+class View
 {
     /**
      * Path to the directory containing template files
@@ -42,11 +43,19 @@ class Template
      */
     public function __construct(?string $path = null)
     {
-        $path ??= env('template_dir');
+        $path ??= env('views_dir');
 
         if ($path === null) {
-            throw new Exception('Template path is not set.');
+            throw new Exception('Views directory path is not set.');
         }
+
+        $this->mergeContext([
+            'app' => Application::$app,
+            'request' => Application::$app->get(Request::class),
+            'session' => Application::$app->get(Session::class),
+            'errors' => Application::$app->get(Request::class)->getErrorObject(),
+            'view' => $this,
+        ]);
 
         $this->setPath($path);
     }
@@ -109,6 +118,20 @@ class Template
     public function getContext(): array
     {
         return $this->context;
+    }
+
+    /**
+     * Merges default data into the context for use in templates.
+     *
+     * Includes the application instance, current request object, session
+     * object, error object, and the view instance.
+     *
+     * @param array $context Additional context data to merge.
+     * @return void
+     */
+    public function mergeContext(array $context): void
+    {
+        $this->context = array_merge($this->context, $context);
     }
 
     /**
@@ -212,18 +235,51 @@ class Template
     public function include(string $template, array $context = []): string
     {
         // Create a template location path with template root dir.
-        $templatePath = dir_path($this->path . '/' . str_replace('.php', '', $template) . '.php');
+        $templatePath = $this->path . '/' . str_replace('.php', '', $template) . '.php';
 
         // Extract and pass variables from array.
         $context = array_merge($this->context, $context);
-        extract($context);
 
-        // Set current object to be used in template.
-        $template = $this;
+        return $this->renderTemplatePart($templatePath, $context);
+    }
+
+    /**
+     * Renders a component template with the given context and outputs the rendered content.
+     *
+     * The function uses output buffering to capture the included template's output.
+     * It extracts the context array into variables and makes the current object
+     * available within the template as `$view`.
+     *
+     * @param string $component The component template file name.
+     * @param array $context An associative array of variables to be extracted and used within the template.
+     * @return string The rendered template content.
+     */
+    public function component(string $component, array $context = []): string
+    {
+        $templatePath = $this->path . '/components/' . str_replace('.php', '', $component) . '.php';
+
+        // Include template part and output as string.
+        return $this->renderTemplatePart($templatePath, $context);
+    }
+
+    /**
+     * Renders a template file with the given context and returns the rendered content as a string.
+     *
+     * The function uses output buffering to capture the included template's output.
+     * It extracts the context array into variables and makes the current object
+     * available within the template as `$view`.
+     *
+     * @param string $templatePath The full path to the template file.
+     * @param array $context An associative array of variables to be extracted and used within the template.
+     * @return string The rendered template content.
+     */
+    public function renderTemplatePart(string $templatePath, array $context = []): string
+    {
+        extract($context);
 
         // Include template part and return as string.
         ob_start();
-        include $templatePath;
+        include dir_path($templatePath);
         return ob_get_clean();
     }
 }

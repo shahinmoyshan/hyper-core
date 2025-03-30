@@ -209,41 +209,65 @@ class Query
     }
 
     /**
-     * Adds a condition to the WHERE clause with a specified type (AND/OR).
+     * Add a where clause to the query.
      *
-     * @param mixed $conditions The condition(s) to be applied, either as a string or array.
-     * @param string $type The logical operator to join conditions (default is 'AND').
+     * @param string|array $column 
+     *   The column name to query, or an array of column names.
+     * @param string|null $operator 
+     *   The operator to use. If null, the operator will be determined
+     *   based on the value given.
+     * @param mixed $value 
+     *   The value to query. If null, the value will be determined
+     *   based on the operator given.
+     * @param string $type 
+     *   The type of where clause to add. May be 'AND' or 'OR'.
      * @return self
      */
-    public function where(mixed $conditions = null, string $type = 'AND'): self
+    public function where(string|array $column = null, ?string $operator = null, $value = null, string $type = 'AND'): self
     {
-        if ($conditions !== null) {
-            return $this->addWhere($type, $conditions);
+        if ($column !== null) {
+            return $this->addWhere($type, $column, $operator, $value);
         }
 
         return $this;
     }
 
     /**
-     * Adds an additional condition to the WHERE clause using the AND operator.
+     * Add an AND where clause to the query.
      *
-     * @param mixed $conditions The condition(s) to be added to the WHERE clause.
+     * @param string|array $column
+     *   The column name to query, or an array of column names.
+     * @param string|null $operator
+     *   The operator to use. If null, the operator will be determined
+     *   based on the value given.
+     * @param mixed $value
+     *   The value to query. If null, the value will be determined
+     *   based on the operator given.
      * @return self
      */
-    public function andWhere(mixed $conditions): self
+    public function andWhere(string|array $column = null, ?string $operator = null, $value = null): self
     {
-        return $this->addWhere('AND', $conditions);
+        return $this->addWhere('AND', $column, $operator, $value);
     }
 
+
     /**
-     * Adds an additional condition to the WHERE clause using the OR operator.
-     * 
-     * @param mixed $conditions The condition(s) to be applied, either as a string or array.
+     * Add an OR where clause to the query.
+     *
+     * @param string|array $column
+     *   The column name to query, or an array of column names.
+     * @param string|null $operator
+     *   The operator to use. If null, the operator will be determined
+     *   based on the value given.
+     * @param mixed $value
+     *   The value to query. If null, the value will be determined
+     *   based on the operator given.
      * @return self
+     *   Returns the current instance for method chaining.
      */
-    public function orWhere(mixed $conditions): self
+    public function orWhere(string|array $column = null, ?string $operator = null, $value = null): self
     {
-        return $this->addWhere('OR', $conditions);
+        return $this->addWhere('OR', $column, $operator, $value);
     }
 
     /**
@@ -802,19 +826,43 @@ class Query
         return $this->query['statement'];
     }
 
+
     /**
-     * Helper method for adding conditions to the WHERE clause.
+     * Adds a WHERE clause to the current SQL query.
      *
-     * @param string $method The method type, either 'AND' or 'OR', to join the conditions.
-     * @param mixed $conditions The condition(s) to be added to the WHERE clause.
-     * @return self
+     * This method allows building dynamic WHERE clauses using method chaining.
+     * It supports single column conditions, array-based conditions for complex
+     * clauses, and simple string clauses.
+     *
+     * @param string $method The logical method (e.g., WHERE, AND, OR) to use.
+     * @param string|array|null $column The column name or array of column-value pairs.
+     * @param string|null $operator The operator for the WHERE clause (e.g., '=', 'LIKE').
+     * @param mixed|null $value The value to compare the column to.
+     * @return self Returns the current instance for method chaining.
+     * @throws Exception If the provided arguments are invalid.
      */
-    private function addWhere(string $method, mixed $conditions): self
+    private function addWhere(string $method, string|array $column = null, ?string $operator = null, $value = null): self
     {
         // Holds a conditional clause for database.
         $command = '';
 
-        if (is_array($conditions)) {
+        if (is_string($column) && is_string($operator)) {
+            // Create a where clause from column, operator, and value.
+            // for example: "title like :title"
+            if ($value === null) {
+                $value = $operator;
+                $operator = '=';
+            }
+
+            $command = sprintf(
+                "%s %s %s :%s",
+                $method,
+                $column,
+                $operator,
+                str_replace('.', '', $column)
+            );
+            $this->where['bind'] = array_merge($this->where['bind'], [$column => $value]);
+        } elseif (is_array($column) && $operator === null && $value === null) {
             // Create a where clause from array conditions.
             $command = sprintf(
                 "%s %s",
@@ -831,21 +879,26 @@ class Query
                             // Create a where close to match is equal, Ex. "id = :id_0"
                             : " = :" . str_replace('.', '', $attr)
                         ),
-                        array_keys($conditions),
-                        array_values($conditions)
+                        array_keys($column),
+                        array_values($column)
                     )
                 )
             );
 
             // Append where clause binding values, safe & GOOD PDO practice.
-            $this->where['bind'] = array_merge($this->where['bind'], $conditions);
-        } elseif (is_string($conditions)) {
+            $this->where['bind'] = array_merge($this->where['bind'], $column);
+        } elseif (is_string($column) && $operator === null && $value === null) {
             // Simply add a where clause from string.
-            $command = "{$method} {$conditions}";
+            $command = "{$method} {$column}";
+        } else {
+            throw new Exception('Invalid where clause');
         }
 
         // Register the where clause into current query builder.
-        $this->where['sql'] .= sprintf(' %s ', empty($this->where['sql']) ? ltrim($command, $method . ' ') : $command);
+        $this->where['sql'] .= sprintf(
+            ' %s ',
+            empty($this->where['sql']) ? ltrim($command, "$method ") : $command
+        );
 
         // Returns the current instance for method chaining.
         return $this;

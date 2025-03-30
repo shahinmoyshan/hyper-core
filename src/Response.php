@@ -108,6 +108,38 @@ class Response
     }
 
     /**
+     * Flash a key-value pair to the session.
+     *
+     * This method stores a key-value pair in the session flash data,
+     * which is available for the next request. The session flash data
+     * is usually used to store temporary data like status messages.
+     *
+     * @param string $key The key to store in the session flash data.
+     * @param mixed $value The value associated with the key.
+     * @return $this Current response instance for method chaining.
+     */
+    public function with(string $key, mixed $value): self
+    {
+        session()->flash($key, $value);
+        return $this;
+    }
+
+    /**
+     * Redirects the user back to the previous page.
+     *
+     * This method retrieves the "referer" header from the request and
+     * redirects the user to the URL specified in the referer. It is
+     * typically used to navigate back to the last page visited by the user.
+     *
+     * @return void
+     */
+    public function back(): void
+    {
+        $referer = request()->header('referer', '/'); // Get the referer URL
+        $this->redirect($referer);
+    }
+
+    /**
      * Sends the HTTP response to the client, including headers, status code, and content.
      * Applies any output filters to the content before outputting it.
      */

@@ -3,7 +3,7 @@
 namespace Hyper;
 
 use Hyper\Helpers\Mail;
-use Hyper\Helpers\Vite;
+use Hyper\Utils\Vite;
 use Hyper\Utils\Cache;
 use Hyper\Utils\Hash;
 use Hyper\Utils\Ping;
@@ -68,8 +68,10 @@ class Application
         $this->container->singleton(Response::class);
         $this->container->singleton(Middleware::class);
         $this->container->singleton(Router::class);
-        $this->container->singleton(Database::class);
         $this->container->singleton(Translator::class);
+        $this->container->singleton(Database::class);
+        $this->container->singleton(View::class);
+        $this->container->singleton(Vite::class);
         $this->container->singleton(Hash::class);
 
         // Bind core services
@@ -82,8 +84,6 @@ class Application
         $this->container->bind(Image::class);
         $this->container->bind(Paginator::class);
         $this->container->bind(Collect::class);
-        $this->container->bind(Mail::class);
-        $this->container->bind(Vite::class);
     }
 
     /**

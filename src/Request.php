@@ -2,6 +2,8 @@
 
 namespace Hyper;
 
+use Hyper\Helpers\Validator;
+
 /**
  * Class Request
  * 
@@ -13,6 +15,12 @@ namespace Hyper;
  */
 class Request
 {
+    /**
+     * Use the Validator trait to validate request data. If 
+     * it fails, then redirect to previous page with error messages
+     */
+    use Validator;
+
     /**
      * HTTP request method (e.g., GET, POST).
      * @var string
@@ -279,7 +287,7 @@ class Request
      */
     public function isAjax(): bool
     {
-        return strtolower($this->header('x-requested-with', '')) === 'xmlhttpRequest';
+        return strtolower($this->header('x-requested-with', '')) === 'xmlhttprequest';
     }
 
     /**
@@ -612,5 +620,18 @@ class Request
     public function getFileUploads(): array
     {
         return $this->fileUploads;
+    }
+
+    /**
+     * Determines if the request is made by a Fireline agent.
+     *
+     * This method checks if the request is an AJAX request, accepts JSON,
+     * and contains the 'x-fireline-agent' header.
+     *
+     * @return bool True if the request is from a Fireline agent, false otherwise.
+     */
+    public function isFirelineRequest(): bool
+    {
+        return $this->isAjax() && $this->accept('application/json') && $this->header('x-fireline-agent');
     }
 }
