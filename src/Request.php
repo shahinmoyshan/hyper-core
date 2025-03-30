@@ -291,6 +291,20 @@ class Request
     }
 
     /**
+     * Checks if the current request's path matches the given path.
+     * 
+     * The current request's path is compared to the given path after both
+     * paths are trimmed of leading and trailing slashes.
+     * 
+     * @param string $path The path to check against.
+     * @return bool True if the current request's path matches the given path, false otherwise.
+     */
+    public function is(string $path): bool
+    {
+        return trim($this->path, '/') === trim($path, '/');
+    }
+
+    /**
      * Retrieves the URI path of the current request.
      * 
      * @return string The request URI path.
